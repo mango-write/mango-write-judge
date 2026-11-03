@@ -1,0 +1,38 @@
+{
+  "name": "@mango-write-judge/web",
+  "version": "0.1.0",
+  "type": "module",
+  "license": "AGPL-3.0-or-later",
+  "scripts": {
+    "dev": "vite",
+    "build": "vite build",
+    "typecheck": "vue-tsc --noEmit -p tsconfig.json",
+    "test": "vitest run"
+  },
+  "dependencies": {
+    "@mango-write-judge/contracts": "workspace:*",
+    "@mango-write-judge/domain": "workspace:*",
+    "@mango-write/ui": "git+https://github.com/mango-write/mango-write-ui.git#47f80d53273e8f657dc34477eedd6754df75715a",
+    "@primeuix/themes": "^1.0.0",
+    "lucide-vue-next": "^1.0.0",
+    "primevue": "^4.2.5",
+    "qrcode": "^1.5.4",
+    "vue": "^3.5.34",
+    "vue-i18n": "^11.4.7",
+    "vue-router": "^4.4.5"
+  },
+  "devDependencies": {
+    "@tailwindcss/vite": "^4.3.3",
+    "@types/node": "^24.13.3",
+    "@types/qrcode": "^1.5.6",
+    "@vitejs/plugin-vue": "^6.0.8",
+    "@vue/test-utils": "^2.4.11",
+    "happy-dom": "^20.11.1",
+    "tailwindcss": "^4.0.0",
+    "tailwindcss-primeui": "^0.4.0",
+    "typescript": "npm:@typescript/typescript6@^6.0.2",
+    "vite": "^8.3.5",
+    "vitest": "^4.1.12",
+    "vue-tsc": "^3.3.11"
+  }
+}

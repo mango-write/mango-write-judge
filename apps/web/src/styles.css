@@ -1,0 +1,38 @@
+/* Judge 入口样式：主题层全部在 @mango-write/ui（token/@theme/材质配方），
+ * 本文件只做装配。Tailwind v4 CSS-first；ui 包组件源码在 node_modules 里
+ * （默认不扫描），显式 @source 纳入。 */
+@import "tailwindcss" prefix(tw);
+@plugin "tailwindcss-primeui";
+@import "@mango-write/ui/theme.css";
+@import "@mango-write/ui/components.css";
+
+@source "../../node_modules/@mango-write/ui/src";
+
+html,
+body,
+#app {
+  min-height: 100%;
+  margin: 0;
+}
+
+body {
+  font-size: 14px;
+  line-height: var(--line-height-body);
+}
+
+/* 评委端触控目标与安全区（MVP 规格 §9.2） */
+.judge-touch {
+  touch-action: manipulation;
+}
+
+.judge-footer-safe {
+  padding-bottom: max(env(safe-area-inset-bottom), 12px);
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .display-row,
+  .display-autopage {
+    transition: none !important;
+    animation: none !important;
+  }
+}

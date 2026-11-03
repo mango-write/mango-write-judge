@@ -1,0 +1,62 @@
+# 云端自托管：api（replicas 固定 1）+ postgres 18 + caddy（HTTPS / SSE 不缓冲）。
+# 数据都在 PG 命名卷里；升级顺序：备份数据库 → 拉新版 → migration（api 启动时自动跑）→ 单实例起。
+services:
+  api:
+    build:
+      context: ..
+      dockerfile: Dockerfile
+    restart: unless-stopped
+    deploy:
+      replicas: 1
+    environment:
+      DATABASE_URL: ${DATABASE_URL:-postgres://judge:${POSTGRES_PASSWORD:?need POSTGRES_PASSWORD}@postgres:5432/judge}
+      ADMIN_PASSWORD: ${ADMIN_PASSWORD:?need ADMIN_PASSWORD (>=12 chars)}
+      PUBLIC_BASE_URL: ${PUBLIC_BASE_URL:?need PUBLIC_BASE_URL}
+      PORT: 3200
+    depends_on:
+      postgres:
+        condition: service_healthy
+    networks:
+      - internal
+
+  postgres:
+    image: postgres:18
+    restart: unless-stopped
+    environment:
+      POSTGRES_USER: judge
+      POSTGRES_PASSWORD: ${POSTGRES_PASSWORD:?need POSTGRES_PASSWORD}
+      POSTGRES_DB: judge
+    volumes:
+      - pgdata:/var/lib/postgresql/data
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U judge -d judge"]
+      interval: 5s
+      timeout: 3s
+      retries: 20
+    networks:
+      - internal
+
+  caddy:
+    image: caddy:2
+    restart: unless-stopped
+    ports:
+      - "80:80"
+      - "443:443"
+    environment:
+      JUDGE_DOMAIN: ${JUDGE_DOMAIN:?need JUDGE_DOMAIN}
+    volumes:
+      - ./Caddyfile:/etc/caddy/Caddyfile:ro
+      - caddy_data:/data
+      - caddy_config:/config
+    depends_on:
+      - api
+    networks:
+      - internal
+
+volumes:
+  pgdata:
+  caddy_data:
+  caddy_config:
+
+networks:
+  internal:

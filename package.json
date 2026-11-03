@@ -1,0 +1,27 @@
+{
+  "name": "mango-write-judge",
+  "private": true,
+  "version": "0.1.0",
+  "type": "module",
+  "license": "AGPL-3.0-or-later",
+  "description": "路演评审系统：建赛 → 现场评分 → 大屏 → 改分管控 → 冻结 → 导出",
+  "packageManager": "pnpm@10.20.0",
+  "engines": {
+    "node": ">=24"
+  },
+  "scripts": {
+    "dev": "pnpm --parallel --filter @mango-write-judge/api --filter @mango-write-judge/web dev",
+    "db:migrate": "pnpm --filter @mango-write-judge/api db:migrate",
+    "db:create-test": "pnpm --filter @mango-write-judge/api db:create-test",
+    "build": "pnpm --filter @mango-write-judge/web build",
+    "typecheck": "pnpm -r typecheck",
+    "test": "pnpm -r test",
+    "e2e": "pnpm --filter @mango-write-judge/e2e test",
+    "docker:up": "docker compose -f deploy/docker-compose.yml up -d --build"
+  },
+  "pnpm": {
+    "overrides": {
+      "@mango-write/ui": "git+https://github.com/mango-write/mango-write-ui.git#47f80d53273e8f657dc34477eedd6754df75715a"
+    }
+  }
+}

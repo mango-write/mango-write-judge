@@ -1,0 +1,15 @@
+# Caddy：自动 HTTPS；flush_interval -1 关闭响应缓冲，SSE 实时推送不被攒包。
+{$JUDGE_DOMAIN} {
+	encode zstd gzip
+
+	header {
+		Strict-Transport-Security "max-age=31536000"
+		X-Content-Type-Options "nosniff"
+		Referrer-Policy "no-referrer"
+		-X-Frame-Options
+	}
+
+	reverse_proxy api:3200 {
+		flush_interval -1
+	}
+}

@@ -1,0 +1,29 @@
+{
+  "name": "@mango-write-judge/api",
+  "version": "0.1.0",
+  "type": "module",
+  "license": "AGPL-3.0-or-later",
+  "scripts": {
+    "dev": "tsx watch src/index.ts",
+    "start": "tsx src/index.ts",
+    "db:migrate": "tsx src/db/migrate-cli.ts",
+    "db:create-test": "tsx src/db/create-test-db.ts",
+    "typecheck": "tsc6 --noEmit -p tsconfig.json",
+    "test": "vitest run"
+  },
+  "dependencies": {
+    "@hono/node-server": "^2.1.5",
+    "@mango-write-judge/contracts": "workspace:*",
+    "@mango-write-judge/domain": "workspace:*",
+    "dotenv": "^17.2.0",
+    "hono": "^4.13.13",
+    "postgres": "^3.4.5",
+    "zod": "^4.4.3"
+  },
+  "devDependencies": {
+    "@types/node": "^24.13.3",
+    "tsx": "^4.21.0",
+    "typescript": "npm:@typescript/typescript6@^6.0.2",
+    "vitest": "^4.1.12"
+  }
+}

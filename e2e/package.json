@@ -1,0 +1,17 @@
+{
+  "name": "@mango-write-judge/e2e",
+  "version": "0.1.0",
+  "private": true,
+  "type": "module",
+  "license": "AGPL-3.0-or-later",
+  "scripts": {
+    "test": "playwright test",
+    "typecheck": "tsc6 --noEmit -p tsconfig.json"
+  },
+  "devDependencies": {
+    "@playwright/test": "^1.56.0",
+    "@types/node": "^24.13.3",
+    "postgres": "^3.4.5",
+    "typescript": "npm:@typescript/typescript6@^6.0.2"
+  }
+}
