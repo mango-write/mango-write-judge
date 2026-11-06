@@ -1,10 +1,10 @@
-import { createHash, timingSafeEqual } from "node:crypto";
-
 import type { Context, MiddlewareHandler } from "hono";
 import type { ZodType } from "zod";
 
 import { getSessionToken, lookupSession, type SessionRow } from "../auth/session";
-import { AppError, unauthorized } from "../http/errors";
+import type { Sql } from "../db/client";
+import { AppError, forbidden, unauthorized } from "../http/errors";
+import type { AdminUserRow } from "../services/accounts";
 
 export interface RouteDeps {
   sql: import("../db/client").Sql;
@@ -16,6 +16,7 @@ export type AppEnv = {
   Variables: {
     judgeSession: SessionRow;
     displaySession: SessionRow;
+    adminUser: AdminUserRow;
   };
 };
 
@@ -46,17 +47,28 @@ export async function requireRole(
   return session;
 }
 
-export function adminGuard(sql: import("../db/client").Sql): MiddlewareHandler {
+export function adminGuard(sql: Sql): MiddlewareHandler {
   return async (c, next) => {
-    await requireRole(c, sql, "admin");
+    const session = await requireRole(c, sql, "admin");
+    // 迁移前遗留的 admin 会话没有归属账号，直接按失效处理
+    if (!session.admin_user_id) throw unauthorized();
+    const rows = await sql<AdminUserRow[]>`
+      SELECT id, username, name, role, password_hash, disabled, created_at
+        FROM admin_users WHERE id = ${session.admin_user_id} LIMIT 1
+    `;
+    const user = rows[0];
+    if (!user || user.disabled) throw unauthorized();
+    c.set("adminUser", user);
     await next();
   };
 }
 
-export function constantTimeEqual(a: string, b: string): boolean {
-  const ha = createHash("sha256").update(a).digest();
-  const hb = createHash("sha256").update(b).digest();
-  return timingSafeEqual(ha, hb);
+/** 账户管理面：仅超管。挂在 adminGuard 之后使用。 */
+export function superGuard(): MiddlewareHandler {
+  return async (c, next) => {
+    if (c.get("adminUser").role !== "super") throw forbidden("仅超级管理员可管理账户");
+    await next();
+  };
 }
 
 export function clientIp(c: Context): string {

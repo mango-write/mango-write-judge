@@ -23,7 +23,8 @@ async function setScore(page: import("@playwright/test").Page, name: string, val
 
 async function adminGoto(page: Page, path: string) {
   await page.goto(path);
-  await page.getByLabel("管理员密码", { exact: false }).fill(E2E_ADMIN_PASSWORD);
+  await page.getByLabel("用户名", { exact: false }).fill("admin");
+  await page.getByLabel("密码", { exact: false }).fill(E2E_ADMIN_PASSWORD);
   await page.getByRole("button", { name: "登录" }).click();
   await page.waitForURL(path);
 }
@@ -199,3 +200,67 @@ async function eventIdOf(adminPage: Page): Promise<string> {
   const body = (await list.json()) as { events: { id: string; slug: string }[] };
   return body.events.find((event) => event.slug === "e2e-demo")!.id;
 }
+
+/** 登录页填表并提交。 */
+async function loginAs(page: Page, username: string, password: string) {
+  await page.getByLabel("用户名", { exact: false }).fill(username);
+  await page.getByLabel("密码", { exact: false }).fill(password);
+  await page.getByRole("button", { name: "登录" }).click();
+}
+
+test("账户系统：建管理员、停用启用、改密与权限边界", async ({ browser }) => {
+  const admin = await browser.newContext({ viewport: { width: 1440, height: 900 } });
+  const page = await admin.newPage();
+  const BASE = "http://localhost:3210";
+
+  // 登录限流是按 IP 全局 5 次/分钟（与上一用例共享），本用例把登录控制在 4 次。
+  await adminGoto(page, `${BASE}/admin/accounts`);
+
+  // 1. 超管新建管理员，随即停用（确认框）再启用（直接生效）
+  await page.getByRole("button", { name: "新建管理员" }).click();
+  await page.getByLabel("用户名").fill("ops01");
+  await page.getByLabel("姓名").fill("运营一号");
+  await page.getByLabel("初始密码").fill("ops-password-123456");
+  await page.getByRole("button", { name: "保存", exact: true }).click();
+  await expect(page.getByText("运营一号")).toBeVisible();
+
+  // 列表按创建时间排序：超管自己那行的停用键在首位且被禁用，nth(1) 才是 ops01
+  await page.getByRole("button", { name: "停用", exact: true }).nth(1).click();
+  // 确认框接受：点击后按钮随弹窗同步卸载，click 的事后重定位会落到超管行那个永久 disabled 的
+  // 同名按钮上（enabled 检查永远不过，click 挂死）——用键盘触发并断言结果，绕开重定位竞态
+  const confirmAccept = page.getByRole("dialog").getByRole("button", { name: "停用", exact: true });
+  await confirmAccept.focus();
+  await page.keyboard.press("Enter");
+  // exact：成功 toast 文案「账号已停用」含「已停用」子串，会撞 strict
+  await expect(page.getByText("已停用", { exact: true })).toBeVisible();
+  await page.getByRole("button", { name: "启用", exact: true }).click();
+  await expect(page.getByText("已停用", { exact: true })).toBeHidden();
+
+  // 2. 登出 → 新管理员登录；普通管理员无账户管理入口、直连账户页被弹回
+  await page.getByRole("button", { name: "退出登录" }).click();
+  await page.waitForURL(/\/admin\/login/);
+  await loginAs(page, "ops01", "ops-password-123456");
+  await page.waitForURL(`${BASE}/admin`);
+  await expect(page.getByRole("button", { name: "账户管理" })).toBeHidden();
+  await page.goto(`${BASE}/admin/accounts`);
+  await page.waitForURL(`${BASE}/admin`);
+
+  // 3. 自己改密码：确认新密码不一致先拦，正确后成功
+  await page.getByRole("button", { name: "修改密码" }).click();
+  await page.getByLabel("当前密码").fill("ops-password-123456");
+  await page.getByLabel("新密码", { exact: true }).fill("ops-password-654321");
+  await page.getByLabel("确认新密码").fill("ops-password-000000");
+  await page.getByRole("button", { name: "修改密码" }).last().click();
+  await expect(page.getByText("两次输入的新密码不一致")).toBeVisible();
+  await page.getByLabel("确认新密码").fill("ops-password-654321");
+  await page.getByRole("button", { name: "修改密码" }).last().click();
+  await expect(page.getByText("密码已修改")).toBeVisible({ timeout: 10_000 });
+
+  // 4. 旧密码登录失败，新密码成功
+  await page.getByRole("button", { name: "退出登录" }).click();
+  await page.waitForURL(/\/admin\/login/);
+  await loginAs(page, "ops01", "ops-password-123456");
+  await expect(page.getByText("用户名或密码错误")).toBeVisible({ timeout: 10_000 });
+  await loginAs(page, "ops01", "ops-password-654321");
+  await page.waitForURL(`${BASE}/admin`);
+});

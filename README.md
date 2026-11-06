@@ -30,6 +30,8 @@
 
 评委与大屏通过一次性链接进入：token 放在 URL fragment，换取 HttpOnly 会话后立即从地址栏移除；丢失链接由管理员轮换重发，轮换即吊销旧会话。
 
+管理端账户：首次启动用 `ADMIN_PASSWORD` 播种超管账号（用户名 `admin`），之后改这个环境变量**不影响**已建账号；超管在「账户管理」新建管理员、重置密码、停用账号（重置/停用即吊销对方会话），所有管理员在页头自行修改密码。管理员与超管的赛事操作权限相同，仅账户管理为超管专属。
+
 ## 本地开发
 
 要求：Node.js 24+、pnpm 10+、PostgreSQL 13+。
@@ -38,13 +40,13 @@
 git clone https://github.com/<owner>/mango-write-judge.git
 cd mango-write-judge
 pnpm install --frozen-lockfile
-cp .env.example .env      # 填 DATABASE_URL（库需已创建）与 ADMIN_PASSWORD（≥12 位）
+cp .env.example .env      # 填 DATABASE_URL（库需已创建）与 ADMIN_PASSWORD（≥12 位，播种超管初始密码）
 pnpm db:migrate
 pnpm build                # 构建前端产物（API 会托管）
 pnpm dev                  # API :3200 + 前端 :5181（/api 代理到 3200）
 ```
 
-打开 <http://localhost:5181>，用管理员密码登录。
+打开 <http://localhost:5181>，用用户名 `admin`（超管）与 `ADMIN_PASSWORD` 登录。
 
 > 本地没有 PostgreSQL？`docker run -d --name judge-pg -e POSTGRES_USER=judge -e POSTGRES_PASSWORD=judge -e POSTGRES_DB=judge -p 5544:5432 postgres:18`，然后 `DATABASE_URL=postgres://judge:judge@localhost:5544/judge`。
 
@@ -70,6 +72,8 @@ EOF
 docker compose up -d --build
 ```
 
+`ADMIN_PASSWORD` 只在库中尚无超管时播种一次（用户名 `admin`），登录后请在页头修改密码。
+
 - Caddy 自动签发 HTTPS，SSE 响应不缓冲（`flush_interval -1`）
 - API 副本固定 1：SSE Hub 与协同状态在单进程内，不支持多实例扩容
 - `VITE_JUDGING_SOURCE_URL` 在构建期注入源码链接（AGPL 网络部署源码提供，见 [LICENSING.md](LICENSING.md)）
@@ -77,7 +81,7 @@ docker compose up -d --build
 
 ## 技术栈
 
-Vue 3 · PrimeVue + [MangoWrite UI](https://github.com/mango-write/mango-write-ui)（Apache-2.0，Git commit 钉版）· Tailwind CSS v4 · Hono · postgres.js · 版本化 SQL migration · Zod 契约 · SSE。计分与排名只有一份实现（`packages/domain`），实时榜、管理端结果、最终快照与 CSV 导出全部经它计算。
+Vue 3 · [MangoWrite UI](https://github.com/mango-write/mango-write-ui)（Apache-2.0，Git commit 钉版）· Tailwind CSS v4 · Hono · postgres.js · 版本化 SQL migration · Zod 契约 · SSE。计分与排名只有一份实现（`packages/domain`），实时榜、管理端结果、最终快照与 CSV 导出全部经它计算。
 
 ## 目录
 

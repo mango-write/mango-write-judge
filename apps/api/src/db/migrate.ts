@@ -15,6 +15,7 @@ export const APP_TABLES = [
   "evaluation_items",
   "evaluations",
   "sessions",
+  "admin_users",
   "judges",
   "projects",
   "criteria",

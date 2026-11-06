@@ -23,6 +23,7 @@
 - **`mergeUiMessages` 会把 UI 自持文案深合并进宿主 `common.*` 的保留子键**（`select`/`userSelect`/`async`/`action`/`dialog`/`confirm`/`lightbox`）——宿主同路径的标量会被 UI 的对象覆盖（`common.confirm` 被覆盖成 `{title,accept,reject}` 即为实例），通用按钮键因此叫 `common.ok`，别再往保留子键放自己的标量。
 - **UI 硬规则：组件禁用 `size="small"`（回落默认尺寸），组件间必须有 gap**。Tailwind 前缀是 `tw:` 且**前缀要写在变体前**（`tw:hover:underline` / `tw:lg:grid-cols-3`）——写成 `hover:tw:*` / `lg:tw:*` 是死类，编译器不生成规则（4.3.4 实测），整页布局会静默碎掉。
 - **配置写都带 `expectedRevision`**（乐观并发）；`admin` 路由的 404/409/422 语义见 `packages/contracts/src/errors.ts`。
+- **管理端账户只有一套**：密码 scrypt 存 `admin_users`（`auth/password.ts`），超管（用户名 `admin`）只在库中无 super 行时从 `ADMIN_PASSWORD` 播种一次——改 env 不改已建账号；`sessions.admin_user_id` 为 NULL 的遗留会话在守卫处直接按失效处理（升级即重登）。`/accounts` 走 `superGuard`，登录失败文案统一「用户名或密码错误」并对不存在/停用账号烧一次 dummy scrypt，别在别处泄露账号是否存在。
 - **测试库硬校验**：`mango_judge_test` / `judge_e2e`，别的库名直接拒绝启动。
 - **Vitest 4 没有 `poolOptions.forks.singleFork`**，DB 套件用 `fileParallelism: false` 串行。
 - **`@mango-write/ui` 双钉**：`apps/web` 依赖 + 根 `pnpm.overrides` 同一个 Git commit；Tailwind 入口要 `@source` 指进它的 src。

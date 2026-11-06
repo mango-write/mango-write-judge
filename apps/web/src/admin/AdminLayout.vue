@@ -1,19 +1,31 @@
 <script setup lang="ts">
+import { onMounted, ref } from "vue";
 import { useRoute, useRouter } from "vue-router";
-import { ArrowLeft, LogOut } from "lucide-vue-next";
+import { ArrowLeft, KeyRound, LogOut, Users } from "lucide-vue-next";
 
 import { AppLogo, Button } from "@mango-write/ui";
 
 import { api } from "../lib/api";
+import { fetchMe, invalidateMe, type AdminMe } from "../lib/session";
 import SourceLicenseFooter from "../shared/SourceLicenseFooter.vue";
+import ChangePasswordDialog from "./ChangePasswordDialog.vue";
 
 const router = useRouter();
 const route = useRoute();
+
+const me = ref<AdminMe | null>(null);
+const showChangePassword = ref(false);
+
+onMounted(async () => {
+  // 401 由路由守卫处理跳登录，这里只负责展示身份
+  me.value = await fetchMe().catch(() => null);
+});
 
 async function logout() {
   try {
     await api.post("/admin/logout");
   } finally {
+    invalidateMe();
     router.replace("/admin/login");
   }
 }
@@ -45,6 +57,22 @@ async function logout() {
         />
 
         <div class="tw:ml-auto tw:flex tw:items-center tw:gap-2">
+          <span v-if="me" class="tw:text-xs tw:text-faint">{{ me.name }}</span>
+          <Button
+            v-if="me?.role === 'super'"
+            :label="$t('admin.accounts.title')"
+            :icon="Users"
+            severity="secondary"
+            text
+            @click="router.push('/admin/accounts')"
+          />
+          <Button
+            :label="$t('common.changePassword')"
+            :icon="KeyRound"
+            severity="secondary"
+            text
+            @click="showChangePassword = true"
+          />
           <Button :label="$t('common.logout')" :icon="LogOut" severity="secondary" text @click="logout" />
         </div>
       </div>
@@ -53,5 +81,6 @@ async function logout() {
       <router-view />
       <SourceLicenseFooter />
     </main>
+    <ChangePasswordDialog v-model:open="showChangePassword" />
   </div>
 </template>

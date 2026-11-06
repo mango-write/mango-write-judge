@@ -1,6 +1,7 @@
 import { createRouter, createWebHistory } from "vue-router";
 
-import { api, ApiError } from "./lib/api";
+import { ApiError } from "./lib/api";
+import { fetchMe, invalidateMe } from "./lib/session";
 
 export const router = createRouter({
   history: createWebHistory(),
@@ -13,6 +14,7 @@ export const router = createRouter({
       meta: { requiresAdmin: true },
       children: [
         { path: "", component: () => import("./admin/EventsPage.vue") },
+        { path: "accounts", component: () => import("./admin/AccountsPage.vue"), meta: { requiresSuper: true } },
         {
           path: "events/:id",
           component: () => import("./admin/EventLayout.vue"),
@@ -45,10 +47,12 @@ export const router = createRouter({
 router.beforeEach(async (to) => {
   if (!to.meta.requiresAdmin) return true;
   try {
-    await api.get("/admin/session");
+    const me = await fetchMe();
+    if (to.meta.requiresSuper && me.role !== "super") return { path: "/admin" };
     return true;
   } catch (error) {
     if (error instanceof ApiError && error.status === 401) {
+      invalidateMe();
       return { path: "/admin/login", query: { redirect: to.fullPath } };
     }
     return true;

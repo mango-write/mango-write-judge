@@ -2,7 +2,7 @@ import { getCookie, setCookie } from "hono/cookie";
 import type { Context } from "hono";
 
 import { generateId, generateToken, hashToken } from "./tokens";
-import type { Sql } from "../db/client";
+import type { Sql, Tx } from "../db/client";
 
 export type SessionRole = "admin" | "judge" | "display";
 
@@ -33,19 +33,20 @@ export interface SessionRow {
   role: SessionRole;
   event_id: string | null;
   judge_id: string | null;
+  admin_user_id: string | null;
   expires_at: Date;
 }
 
 export async function createSession(
   sql: Sql,
-  input: { role: SessionRole; eventId?: string; judgeId?: string },
+  input: { role: SessionRole; eventId?: string; judgeId?: string; adminUserId?: string },
 ): Promise<string> {
   const token = generateToken();
   const ttl = SESSION_TTL_MS[input.role];
   await sql`
-    INSERT INTO sessions (id, token_hash, role, event_id, judge_id, expires_at)
+    INSERT INTO sessions (id, token_hash, role, event_id, judge_id, admin_user_id, expires_at)
     VALUES (${generateId()}, ${hashToken(token)}, ${input.role}, ${input.eventId ?? null},
-            ${input.judgeId ?? null}, now() + ${ttl} * interval '1 millisecond')
+            ${input.judgeId ?? null}, ${input.adminUserId ?? null}, now() + ${ttl} * interval '1 millisecond')
   `;
   return token;
 }
@@ -59,13 +60,17 @@ export async function lookupSession(sql: Sql, token: string | undefined): Promis
              WHEN expires_at < now() + (expires_at - created_at) / 2 THEN now() + (expires_at - created_at)
              ELSE expires_at END
      WHERE token_hash = ${hashToken(token)} AND expires_at > now()
-    RETURNING id, role, event_id, judge_id, expires_at
+    RETURNING id, role, event_id, judge_id, admin_user_id, expires_at
   `;
   return rows[0] ?? null;
 }
 
 export async function revokeSession(sql: Sql, token: string): Promise<void> {
   await sql`DELETE FROM sessions WHERE token_hash = ${hashToken(token)}`;
+}
+
+export async function revokeAdminUserSessions(sql: Sql | Tx, adminUserId: string): Promise<void> {
+  await sql`DELETE FROM sessions WHERE admin_user_id = ${adminUserId}`;
 }
 
 export async function revokeJudgeSessions(sql: Sql, judgeId: string): Promise<void> {

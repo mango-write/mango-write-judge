@@ -2,7 +2,9 @@ import { Hono } from "hono";
 
 import {
   activeProjectRequest,
+  changeOwnPasswordRequest,
   closeEventRequest,
+  createAdminAccountRequest,
   createCriterionRequest,
   createEventRequest,
   createJudgeRequest,
@@ -13,6 +15,8 @@ import {
   patchJudgeRequest,
   patchProjectRequest,
   reorderRequest,
+  resetAdminPasswordRequest,
+  setAdminAccountDisabledRequest,
   adminLoginRequest,
 } from "@mango-write-judge/contracts";
 
@@ -25,6 +29,14 @@ import {
 } from "../auth/session";
 import { AppError, unauthorized } from "../http/errors";
 import { createRateLimiter } from "../http/rate-limit";
+import {
+  authenticateAdminUser,
+  changeOwnPassword,
+  createAdminUser,
+  listAdminUsers,
+  resetAdminUserPassword,
+  setAdminUserDisabled,
+} from "../services/accounts";
 import {
   closeEvent,
   createEvent,
@@ -59,7 +71,7 @@ import { revokeUnlock, unlockAllEvaluations, unlockEvaluation } from "../service
 import { exportResultsCsv, exportScoresCsv } from "../services/exports";
 import { getAdminSnapshot } from "../services/snapshots";
 import { getEvent } from "../services/shared";
-import { adminGuard, clientIp, constantTimeEqual, readJson, type AppEnv, type RouteDeps } from "./helpers";
+import { adminGuard, clientIp, readJson, superGuard, type AppEnv, type RouteDeps } from "./helpers";
 import { sseResponse } from "./sse";
 
 const LOGIN_LIMIT = 5;
@@ -77,10 +89,10 @@ export function createAdminRoutes(deps: RouteDeps): Hono<AppEnv> {
       c.header("Retry-After", String(Math.max(1, limit.retryAfterSec)));
       throw new AppError("rate_limited", "尝试过于频繁，请稍后再试");
     }
-    if (!constantTimeEqual(body.password, config.adminPassword)) throw unauthorized("密码错误");
-    const token = await createSession(sql, { role: "admin" });
+    const user = await authenticateAdminUser(sql, body.username, body.password);
+    const token = await createSession(sql, { role: "admin", adminUserId: user.id });
     setSessionCookie(c, token, "admin", config.secureCookies);
-    return c.json({ ok: true });
+    return c.json({ ok: true, name: user.name, role: user.role });
   });
 
   app.post("/logout", async (c) => {
@@ -92,7 +104,45 @@ export function createAdminRoutes(deps: RouteDeps): Hono<AppEnv> {
 
   app.use("*", adminGuard(sql));
 
-  app.get("/session", (c) => c.json({ ok: true }));
+  app.get("/session", (c) => {
+    const user = c.get("adminUser");
+    return c.json({ ok: true, id: user.id, username: user.username, name: user.name, role: user.role });
+  });
+
+  // 自己改密码：任何管理员（含超管）
+  app.post("/account/password", async (c) => {
+    const user = c.get("adminUser");
+    const body = await readJson(c, changeOwnPasswordRequest);
+    await changeOwnPassword(sql, user.id, body.currentPassword, body.newPassword);
+    return c.json({ ok: true });
+  });
+
+  // 账户管理：仅超管
+  app.use("/accounts", superGuard());
+  app.use("/accounts/*", superGuard());
+
+  app.get("/accounts", async (c) => c.json({ accounts: await listAdminUsers(sql) }));
+
+  app.post("/accounts", async (c) => {
+    const body = await readJson(c, createAdminAccountRequest);
+    return c.json(await createAdminUser(sql, body), 201);
+  });
+
+  app.post("/accounts/:id/reset-password", async (c) => {
+    const body = await readJson(c, resetAdminPasswordRequest);
+    await resetAdminUserPassword(sql, c.req.param("id"), body.password);
+    return c.json({ ok: true });
+  });
+
+  app.post("/accounts/:id/disabled", async (c) => {
+    const body = await readJson(c, setAdminAccountDisabledRequest);
+    const account = await setAdminUserDisabled(sql, {
+      targetId: c.req.param("id"),
+      callerId: c.get("adminUser").id,
+      disabled: body.disabled,
+    });
+    return c.json({ account });
+  });
 
   app.get("/events", async (c) => c.json({ events: await listEvents(sql) }));
 

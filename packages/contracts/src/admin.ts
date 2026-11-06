@@ -13,8 +13,34 @@ import {
 
 // ---------- 请求 ----------
 
+export const adminUsernameSchema = z
+  .string()
+  .regex(/^[a-zA-Z0-9_-]{2,32}$/, "用户名需为 2-32 位字母、数字、下划线或连字符");
+
+export const adminPasswordSchema = z.string().min(12, "密码至少 12 位").max(1024);
+
 export const adminLoginRequest = z.object({
+  username: z.string().min(1, "请输入用户名").max(64),
   password: z.string().min(1).max(1024),
+});
+
+export const createAdminAccountRequest = z.object({
+  username: adminUsernameSchema,
+  name: z.string().trim().min(1, "请输入姓名").max(64),
+  password: adminPasswordSchema,
+});
+
+export const resetAdminPasswordRequest = z.object({
+  password: adminPasswordSchema,
+});
+
+export const setAdminAccountDisabledRequest = z.object({
+  disabled: z.boolean(),
+});
+
+export const changeOwnPasswordRequest = z.object({
+  currentPassword: z.string().min(1).max(1024),
+  newPassword: adminPasswordSchema,
 });
 
 export const createEventCriterionInput = z.object({
@@ -186,4 +212,22 @@ export interface CsvImportResultDto {
 
 export interface DisplayInviteDto {
   inviteUrl: string;
+}
+
+export type AdminRole = "super" | "admin";
+
+export interface AdminAccountDto {
+  id: string;
+  username: string;
+  name: string;
+  role: AdminRole;
+  disabled: boolean;
+  createdAt: string;
+}
+
+export interface AdminSessionDto {
+  id: string;
+  username: string;
+  name: string;
+  role: AdminRole;
 }

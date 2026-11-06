@@ -10,6 +10,7 @@ import { loadConfig } from "./config";
 import { createSql } from "./db/client";
 import { runMigrations } from "./db/migrate";
 import { buildApp } from "./app";
+import { ensureSuperAdmin } from "./services/accounts";
 import { hub } from "./realtime/hub";
 
 const config = loadConfig();
@@ -17,6 +18,7 @@ const sql = createSql(config.databaseUrl);
 
 const applied = await runMigrations(sql);
 if (applied.length) console.log(`[api] 已应用 migration：${applied.join(", ")}`);
+await ensureSuperAdmin(sql, config.adminPassword);
 
 // Docker 部署时前端产物由构建阶段放进 apps/web/dist，随镜像提供
 const webDistFromEnv = config.webDistDir;

@@ -3,6 +3,7 @@ import { expect } from "vitest";
 
 import { buildApp } from "../app";
 import type { AppConfig } from "../config";
+import { ensureSuperAdmin } from "../services/accounts";
 import { TEST_ADMIN_PASSWORD, resetDb, testSql } from "./db";
 import { TestClient } from "./app";
 
@@ -25,10 +26,22 @@ export async function createHarness(withReset = true): Promise<Harness> {
     webDistDir: null,
   };
   const app = buildApp({ sql, config });
+  await ensureSuperAdmin(sql, TEST_ADMIN_PASSWORD);
   const admin = new TestClient(app);
-  const login = await admin.post("/api/admin/login", { password: TEST_ADMIN_PASSWORD });
+  const login = await admin.post("/api/admin/login", { username: "admin", password: TEST_ADMIN_PASSWORD });
   expect(login.status).toBe(200);
   return { sql, admin, freshClient: () => new TestClient(app) };
+}
+
+/** 新开一个已登录的客户端（默认超管，可指定账号密码）。 */
+export async function loggedInClient(
+  harness: Harness,
+  credentials: { username: string; password: string },
+): Promise<TestClient> {
+  const client = harness.freshClient();
+  const res = await client.post("/api/admin/login", credentials);
+  expect(res.status).toBe(200);
+  return client;
 }
 
 export interface SeedInput {

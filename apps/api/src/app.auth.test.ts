@@ -11,31 +11,59 @@ beforeEach(async () => {
 });
 
 describe("管理员认证", () => {
-  it("正确密码登录获得会话；错误密码 401", async () => {
+  it("正确密码登录获得会话；错误密码/用户名一律 401 且文案相同", async () => {
     const good = harness.freshClient();
-    const ok = await good.post("/api/admin/login", { password: TEST_ADMIN_PASSWORD });
+    const ok = await good.post("/api/admin/login", { username: "admin", password: TEST_ADMIN_PASSWORD });
     expect(ok.status).toBe(200);
     const list = await good.get("/api/admin/events");
     expect(list.status).toBe(200);
 
+    const generic = "用户名或密码错误";
     const bad = harness.freshClient();
-    expect((await bad.post("/api/admin/login", { password: "wrong" })).status).toBe(401);
+    const wrongPassword = await bad.post("/api/admin/login", { username: "admin", password: "wrong" });
+    expect(wrongPassword.status).toBe(401);
+    expect(errorOf(wrongPassword).message).toBe(generic);
+    const wrongUser = await bad.post("/api/admin/login", { username: "nobody", password: "wrong" });
+    expect(wrongUser.status).toBe(401);
+    expect(errorOf(wrongUser).message).toBe(generic);
     expect((await bad.get("/api/admin/events")).status).toBe(401);
+  });
+
+  it("停用账号登录被拒且文案与错误密码一致；旧会话立即失效", async () => {
+    const created = await harness.admin.post<{ id: string }>("/api/admin/accounts", {
+      username: "staff",
+      name: "现场管理员",
+      password: "staff-password-123456",
+    });
+    expect(created.status).toBe(201);
+    const staff = await harness.freshClient();
+    await staff.post("/api/admin/login", { username: "staff", password: "staff-password-123456" });
+
+    const disabled = await harness.admin.post(`/api/admin/accounts/${created.body.id}/disabled`, {
+      disabled: true,
+    });
+    expect(disabled.status).toBe(200);
+    expect((await staff.get("/api/admin/events")).status).toBe(401);
+
+    const retry = await harness.freshClient();
+    const res = await retry.post("/api/admin/login", { username: "staff", password: "staff-password-123456" });
+    expect(res.status).toBe(401);
+    expect(errorOf(res).message).toBe("用户名或密码错误");
   });
 
   it("登录限流：每 IP 每分钟 5 次，第 6 次 429", async () => {
     const client = harness.freshClient();
     for (let i = 0; i < 5; i++) {
-      await client.post("/api/admin/login", { password: "wrong" });
+      await client.post("/api/admin/login", { username: "admin", password: "wrong" });
     }
-    const limited = await client.post("/api/admin/login", { password: "wrong" });
+    const limited = await client.post("/api/admin/login", { username: "admin", password: "wrong" });
     expect(limited.status).toBe(429);
     expect(errorOf(limited).code).toBe("rate_limited");
   });
 
   it("登出吊销会话", async () => {
     const client = harness.freshClient();
-    await client.post("/api/admin/login", { password: TEST_ADMIN_PASSWORD });
+    await client.post("/api/admin/login", { username: "admin", password: TEST_ADMIN_PASSWORD });
     expect((await client.post("/api/admin/logout")).status).toBe(200);
     expect((await client.get("/api/admin/events")).status).toBe(401);
   });
