@@ -13,7 +13,7 @@ export interface ProgressSnapshotDto {
   mode: "progress";
   eventName: string;
   status: "draft" | "judging" | "closed";
-  currentProject: { position: number; name: string; teamName: string } | null;
+  currentProject: { position: number; name: string; teamName: string; summary?: string } | null;
   submittedCount: number;
   judgeCount: number;
 }

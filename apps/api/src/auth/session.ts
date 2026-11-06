@@ -8,6 +8,20 @@ export type SessionRole = "admin" | "judge" | "display";
 
 export const SESSION_COOKIE = "judge_session";
 
+export const ROLE_COOKIES: Record<SessionRole, string> = {
+  admin: "judge_admin_session",
+  judge: "judge_voter_session",
+  display: "judge_display_session",
+};
+
+export function getSessionToken(c: Context, role?: SessionRole): string | undefined {
+  if (role) {
+    const byRole = getCookie(c, ROLE_COOKIES[role]);
+    if (byRole) return byRole;
+  }
+  return getCookie(c, SESSION_COOKIE);
+}
+
 export const SESSION_TTL_MS: Record<SessionRole, number> = {
   admin: 12 * 60 * 60 * 1000,
   judge: 48 * 60 * 60 * 1000,
@@ -63,15 +77,19 @@ export async function revokeDisplaySessions(sql: Sql, eventId: string): Promise<
 }
 
 export function setSessionCookie(c: Context, token: string, role: SessionRole, secure: boolean): void {
-  setCookie(c, SESSION_COOKIE, token, {
+  const opts = {
     httpOnly: true,
-    sameSite: "Lax",
+    sameSite: "Lax" as const,
     secure,
     path: "/",
     maxAge: Math.floor(SESSION_TTL_MS[role] / 1000),
-  });
+  };
+  setCookie(c, ROLE_COOKIES[role], token, opts);
+  setCookie(c, SESSION_COOKIE, token, opts);
 }
 
-export function clearSessionCookie(c: Context): void {
-  setCookie(c, SESSION_COOKIE, "", { httpOnly: true, sameSite: "Lax", path: "/", maxAge: 0 });
+export function clearSessionCookie(c: Context, role?: SessionRole): void {
+  const opts = { httpOnly: true, sameSite: "Lax" as const, path: "/", maxAge: 0 };
+  if (role) setCookie(c, ROLE_COOKIES[role], "", opts);
+  setCookie(c, SESSION_COOKIE, "", opts);
 }

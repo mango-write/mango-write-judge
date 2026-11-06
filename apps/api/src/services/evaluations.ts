@@ -251,6 +251,26 @@ export async function unlockEvaluation(sql: Sql, eventId: string, evaluationId: 
   return { revision };
 }
 
+/** 批量解锁该比赛所有已提交评分，省去逐格手动解锁。 */
+export async function unlockAllEvaluations(sql: Sql, eventId: string): Promise<{ revision: number; count: number }> {
+  const outcome = await sql.begin(async (tx): Promise<{ revision: number; count: number }> => {
+    const event = await lockEvent(tx, eventId);
+    if (event.status === "closed") throw new AppError("event_closed", "比赛已闭幕");
+    if (event.status === "draft") throw new AppError("event_not_draft", "比赛尚未启动");
+    const evaluations = await tx<{ id: string }[]>`
+      SELECT id FROM evaluations WHERE event_id = ${eventId} AND status = 'submitted'`;
+    for (const ev of evaluations) {
+      await tx`
+        UPDATE evaluation_unlocks SET revoked_at = now()
+        WHERE evaluation_id = ${ev.id} AND revoked_at IS NULL AND used_at IS NULL`;
+      await tx`INSERT INTO evaluation_unlocks (id, evaluation_id) VALUES (${generateId()}, ${ev.id})`;
+    }
+    await insertAudit(tx, eventId, "evaluation.unlock_all", { count: evaluations.length });
+    return { revision: await bumpRevision(tx, eventId), count: evaluations.length };
+  });
+  hub.publish(eventId, outcome.revision);
+  return outcome;
+}
 /** 撤销解锁：未提交的草稿不再允许正式提交，旧正式成绩保持有效。 */
 export async function revokeUnlock(sql: Sql, eventId: string, evaluationId: string): Promise<{ revision: number }> {
   const revision = await sql.begin(async (tx): Promise<number> => {

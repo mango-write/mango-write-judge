@@ -88,6 +88,7 @@ const progressPercent = computed(() => {
           <p class="display-order"># {{ snapshot.currentProject.position }}</p>
           <h1 class="display-project-name">{{ snapshot.currentProject.name }}</h1>
           <p v-if="snapshot.currentProject.teamName" class="display-team">{{ snapshot.currentProject.teamName }}</p>
+          <p v-if="snapshot.currentProject.summary" class="display-summary">{{ snapshot.currentProject.summary }}</p>
           <div class="display-meter">
             <div class="display-meter-label">
               {{ t("display.progress.submitting") }} {{ snapshot.submittedCount }} / {{ snapshot.judgeCount }}
@@ -107,7 +108,17 @@ const progressPercent = computed(() => {
           </span>
         </div>
         <TransitionGroup name="display-row" tag="ol" class="display-rows">
-          <li v-for="row in pageRows" :key="row.projectId" class="display-row" :class="{ 'display-row-top': (row.rank ?? 99) <= 3 && row.rank !== null }">
+          <li
+            v-for="row in pageRows"
+            :key="row.projectId"
+            class="display-row"
+            :class="{
+              'display-row-top': (row.rank ?? 99) <= 3 && row.rank !== null,
+              'display-row-gold': row.rank === 1,
+              'display-row-silver': row.rank === 2,
+              'display-row-bronze': row.rank === 3,
+            }"
+          >
             <span class="display-rank">{{ row.rank ?? "—" }}</span>
             <div class="display-row-main">
               <span class="display-row-name">{{ row.name }}</span>
@@ -203,6 +214,12 @@ const progressPercent = computed(() => {
   font-size: 32px;
   color: var(--d-muted);
 }
+.display-summary {
+  max-width: 960px;
+  font-size: 24px;
+  color: rgba(242, 245, 251, 0.72);
+  margin: 0;
+}
 .display-meter {
   margin-top: 36px;
   width: min(720px, 70%);
@@ -278,6 +295,13 @@ const progressPercent = computed(() => {
   border: 2px solid var(--d-brand);
   background: linear-gradient(90deg, rgba(122, 162, 255, 0.14), var(--d-panel) 55%);
   min-height: 76px;
+}
+.display-row-gold {
+  border-color: #f6c453;
+  background: linear-gradient(90deg, rgba(246, 196, 83, 0.18), var(--d-panel) 55%);
+}
+.display-row-gold .display-rank {
+  color: #f6c453;
 }
 .display-rank {
   width: 64px;

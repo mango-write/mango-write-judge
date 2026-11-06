@@ -92,7 +92,7 @@ test("完整流程：建赛到闭幕导出", async ({ browser }) => {
   
   // 7. 解锁第一个项目（从无当前项目点「下一项目」）
   await adminPage.getByRole("button", { name: "下一项目" }).click();
-  await expect(adminPage.getByText("智能写作")).toBeVisible();
+  await expect(adminPage.getByText("智能写作").first()).toBeVisible();
 
   const displayPage = await display.newPage();
   await displayPage.goto(displayLink);
@@ -159,16 +159,13 @@ test("完整流程：建赛到闭幕导出", async ({ browser }) => {
   await judgeBPage.getByRole("button", { name: "确认" }).last().click();
   await expect(judgeBPage.getByText("提交成功")).toBeVisible({ timeout: 10_000 });
   
-  // 13. 闭幕（有缺评：语音笔记/文献图谱 2 评委未评）
+  // 13. 闭幕（有缺评：语音笔记/文献图谱 2 评委未评，直接通过页面按钮闭幕）
   await adminPage.getByRole("button", { name: "结果" }).click();
   await expect(adminPage.getByText("实时结果，非最终成绩")).toBeVisible();
   await adminPage.getByRole("button", { name: /导出总榜/ }).click();
-  // 闭幕（页面无专门按钮，走 API 与页面同一服务端路径）
-  const closeResult = await adminPage.request.post(
-    `/api/admin/events/${await eventIdOf(adminPage)}/close`,
-    { data: { confirm: true } },
-  );
-  expect(closeResult.ok()).toBeTruthy();
+  await adminPage.getByRole("button", { name: "闭幕并锁定成绩" }).first().click();
+  await adminPage.getByRole("button", { name: "闭幕并锁定成绩" }).last().click();
+  await expect(adminPage.getByText("最终结果")).toBeVisible({ timeout: 10_000 });
   
   // 14. 大屏等待揭晓 → 最终榜
   await adminPage.getByRole("button", { name: "现场控制" }).click();

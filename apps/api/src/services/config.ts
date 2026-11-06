@@ -18,11 +18,14 @@ async function mutateConfig<T>(
   eventId: string,
   expectedRevision: number,
   fn: (tx: Tx) => Promise<T>,
+  allowDuringJudging = false,
 ): Promise<{ revision: number; value: T }> {
   const outcome = await sql.begin(async (tx): Promise<{ revision: number; value: T }> => {
     const event = await lockEvent(tx, eventId);
     if (event.status === "closed") throw new AppError("event_closed", "比赛已闭幕，配置冻结");
-    if (event.status === "judging") throw new AppError("event_not_draft", "比赛已启动，规则与名单已冻结");
+    if (!allowDuringJudging && event.status === "judging") {
+      throw new AppError("event_not_draft", "比赛已启动，规则与名单已冻结");
+    }
     if (event.revision !== expectedRevision) {
       throw new AppError("revision_conflict", "比赛配置已被其他操作修改，请刷新后重试");
     }
@@ -134,7 +137,7 @@ export async function createProject(
       INSERT INTO projects (id, event_id, name, team_name, summary, position)
       VALUES (${generateId()}, ${eventId}, ${input.name}, ${input.teamName}, ${input.summary},
               ${(maxRows[0]?.max ?? 0) + 1})`;
-  });
+  }, true);
   return revision;
 }
 
@@ -152,7 +155,7 @@ export async function patchProject(
                           team_name = COALESCE(${input.teamName ?? null}, team_name),
                           summary = COALESCE(${input.summary ?? null}, summary)
       WHERE id = ${projectId}`;
-  });
+  }, true);
   return revision;
 }
 
@@ -192,7 +195,7 @@ export async function reorderProjects(
     for (let index = 0; index < ids.length; index++) {
       await tx`UPDATE projects SET position = ${index + 1} WHERE id = ${ids[index]!}`;
     }
-  });
+  }, true);
   return revision;
 }
 
@@ -208,12 +211,17 @@ async function insertJudge(tx: Tx, eventId: string, name: string): Promise<Judge
   const token = generateToken();
   const id = generateId();
   await tx`
-    INSERT INTO judges (id, event_id, name, token_hash) VALUES (${id}, ${eventId}, ${name}, ${hashToken(token)})`;
+    INSERT INTO judges (id, event_id, name, invite_token, token_hash)
+    VALUES (${id}, ${eventId}, ${name}, ${token}, ${hashToken(token)})`;
   return { judgeId: id, name, token };
 }
 
 export function judgeInviteUrl(inviteBaseUrl: string, slug: string, token: string): string {
   return `${inviteBaseUrl}/judge/${slug}#${token}`;
+}
+
+export function displayInviteUrl(inviteBaseUrl: string, slug: string, token: string): string {
+  return `${inviteBaseUrl}/display/${slug}#${token}`;
 }
 
 export async function createJudge(
@@ -230,7 +238,7 @@ export async function createJudge(
       throw new AppError("limit_exceeded", `评委最多 ${MAX_JUDGES} 名`);
     }
     return insertJudge(tx, eventId, input.name);
-  });
+  }, true);
   return {
     id: value.judgeId,
     name: value.name,
@@ -249,7 +257,7 @@ export async function patchJudge(
     const rows = await tx`SELECT id FROM judges WHERE id = ${judgeId} AND event_id = ${eventId}`;
     if (!rows[0]) throw notFound("评委不存在");
     await tx`UPDATE judges SET name = COALESCE(${input.name ?? null}, name) WHERE id = ${judgeId}`;
-  });
+  }, true);
   return revision;
 }
 
@@ -282,7 +290,7 @@ export async function rotateJudgeToken(
         SELECT id, name FROM judges WHERE id = ${judgeId} AND event_id = ${eventId}`;
       if (!judge[0]) throw notFound("评委不存在");
       const token = generateToken();
-      await tx`UPDATE judges SET token_hash = ${hashToken(token)} WHERE id = ${judgeId}`;
+      await tx`UPDATE judges SET invite_token = ${token}, token_hash = ${hashToken(token)} WHERE id = ${judgeId}`;
       await insertAudit(tx, eventId, "judge.rotate_token", { judgeId });
       return {
         value: {
@@ -310,7 +318,10 @@ export async function rotateDisplayToken(
       const event = await lockEvent(tx, eventId);
       if (event.status === "closed") throw new AppError("event_closed", "比赛已闭幕");
       const token = generateToken();
-      await tx`UPDATE events SET display_token_hash = ${hashToken(token)}, updated_at = now() WHERE id = ${eventId}`;
+      await tx`
+        UPDATE events
+           SET display_token = ${token}, display_token_hash = ${hashToken(token)}, updated_at = now()
+         WHERE id = ${eventId}`;
       await insertAudit(tx, eventId, "display.rotate_token", {});
       return {
         value: { inviteUrl: `${inviteBaseUrl}/display/${event.slug}#${token}` },
@@ -374,7 +385,7 @@ export async function importProjectsCsv(
         VALUES (${generateId()}, ${eventId}, ${item.name}, ${item.teamName}, ${item.summary}, ${position})`;
       created += 1;
     }
-  });
+  }, true);
   return { created, errors };
 }
 
@@ -407,7 +418,7 @@ export async function importJudgesCsv(
     const invites: JudgeInviteRow[] = [];
     for (const name of valid) invites.push(await insertJudge(tx, eventId, name));
     return invites;
-  });
+  }, true);
   return {
     created: value.length,
     errors,

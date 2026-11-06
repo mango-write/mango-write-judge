@@ -19,6 +19,7 @@ import { generateId, generateToken, hashToken } from "../auth/tokens";
 import type { Sql } from "../db/client";
 import { AppError, notFound } from "../http/errors";
 import { hub } from "../realtime/hub";
+import { displayInviteUrl, judgeInviteUrl } from "./config";
 import { computeLiveResults } from "./results";
 import { bumpRevision, insertAudit, iso, lockEvent, readTx, stableStringify, type EventRow } from "./shared";
 
@@ -63,7 +64,7 @@ function toStartCheck(
   };
 }
 
-export async function getEventDetail(sql: Sql, eventId: string): Promise<EventDetailDto> {
+export async function getEventDetail(sql: Sql, eventId: string, inviteBaseUrl = ""): Promise<EventDetailDto> {
   return readTx(sql, async (tx) => {
     const rows = await tx<EventRow[]>`SELECT * FROM events WHERE id = ${eventId}`;
     const event = rows[0];
@@ -79,8 +80,8 @@ export async function getEventDetail(sql: Sql, eventId: string): Promise<EventDe
         FROM projects p CROSS JOIN events e
        WHERE p.event_id = ${eventId} AND e.id = ${eventId}
        ORDER BY p.position`;
-    const judges = await tx<(JudgeDto & { created_at: Date })[]>`
-      SELECT id, name, created_at FROM judges WHERE event_id = ${eventId} ORDER BY created_at, id`;
+    const judges = await tx<{ id: string; name: string; invite_token: string; created_at: Date }[]>`
+      SELECT id, name, invite_token, created_at FROM judges WHERE event_id = ${eventId} ORDER BY created_at, id`;
     const criteriaDtos: CriterionDto[] = criteria.map((c) => ({
       id: c.id,
       name: c.name,
@@ -100,6 +101,7 @@ export async function getEventDetail(sql: Sql, eventId: string): Promise<EventDe
     const judgeDtos: JudgeDto[] = judges.map((j) => ({
       id: j.id,
       name: j.name,
+      inviteUrl: j.invite_token ? judgeInviteUrl(inviteBaseUrl, event.slug, j.invite_token) : "",
       createdAt: j.created_at.toISOString(),
     }));
     const weights = criteriaDtos.map((c) => c.weightPercent);
@@ -111,6 +113,7 @@ export async function getEventDetail(sql: Sql, eventId: string): Promise<EventDe
       status: event.status,
       revision: event.revision,
       displayMode: event.display_mode,
+      displayInviteUrl: event.display_token ? displayInviteUrl(inviteBaseUrl, event.slug, event.display_token) : "",
       revealedAt: iso(event.revealed_at),
       closedAt: iso(event.closed_at),
       activeProjectId: event.active_project_id,
@@ -141,16 +144,33 @@ function slugify(name: string): string {
 
 export async function createEvent(
   sql: Sql,
-  input: { name: string; slug?: string; description: string },
+  input: {
+    name: string;
+    slug?: string;
+    description: string;
+    criteria?: { name: string; description?: string; weightPercent: number }[];
+  },
+  inviteBaseUrl = "",
 ): Promise<EventDetailDto> {
   const id = generateId();
+  const displayToken = generateToken();
   let slug = input.slug ?? slugify(input.name);
   for (let attempt = 0; attempt < 3; attempt++) {
     try {
-      await sql`
-        INSERT INTO events (id, slug, name, description, display_token_hash)
-        VALUES (${id}, ${slug}, ${input.name}, ${input.description}, ${hashToken(generateToken())})`;
-      return getEventDetail(sql, id);
+      await sql.begin(async (tx) => {
+        await tx`
+          INSERT INTO events (id, slug, name, description, display_token, display_token_hash)
+          VALUES (${id}, ${slug}, ${input.name}, ${input.description}, ${displayToken}, ${hashToken(displayToken)})`;
+        if (input.criteria?.length) {
+          for (let index = 0; index < input.criteria.length; index++) {
+            const item = input.criteria[index]!;
+            await tx`
+              INSERT INTO criteria (id, event_id, name, description, weight_percent, position)
+              VALUES (${generateId()}, ${id}, ${item.name}, ${item.description ?? ""}, ${item.weightPercent}, ${index + 1})`;
+          }
+        }
+      });
+      return getEventDetail(sql, id, inviteBaseUrl);
     } catch (error) {
       const message = String(error);
       if (!message.includes("events_slug_key")) throw error;
@@ -161,10 +181,16 @@ export async function createEvent(
   throw new AppError("slug_taken", "无法生成可用 slug，请手动指定");
 }
 
+export async function deleteEvent(sql: Sql, eventId: string): Promise<void> {
+  const rows = await sql`DELETE FROM events WHERE id = ${eventId} RETURNING id`;
+  if (!rows[0]) throw notFound("比赛不存在");
+}
+
 export async function patchEvent(
   sql: Sql,
   eventId: string,
   input: { name?: string; description?: string; expectedRevision: number },
+  inviteBaseUrl = "",
 ): Promise<EventDetailDto> {
   await sql.begin(async (tx) => {
     const event = await lockEvent(tx, eventId);
@@ -177,7 +203,7 @@ export async function patchEvent(
                         updated_at = now()
       WHERE id = ${eventId}`;
   });
-  return getEventDetail(sql, eventId);
+  return getEventDetail(sql, eventId, inviteBaseUrl);
 }
 
 const startErrorOf = (code: StartIssueCode): AppError =>
@@ -229,6 +255,32 @@ export async function setActiveProject(
       UPDATE projects SET unlocked_at = COALESCE(unlocked_at, now()) WHERE id = ${projectId}`;
     await tx`UPDATE events SET active_project_id = ${projectId}, updated_at = now() WHERE id = ${eventId}`;
     await insertAudit(tx, eventId, "project.activate", { projectId });
+    revision = await bumpRevision(tx, eventId);
+  });
+  hub.publish(eventId, revision);
+  return { revision };
+}
+
+export async function unlockAllProjects(
+  sql: Sql,
+  eventId: string,
+): Promise<{ revision: number }> {
+  let revision = 0;
+  await sql.begin(async (tx) => {
+    const event = await lockEvent(tx, eventId);
+    if (event.status !== "judging") {
+      throw new AppError(event.status === "closed" ? "event_closed" : "event_not_draft", "比赛未在评审阶段");
+    }
+    await tx`
+      UPDATE projects SET unlocked_at = COALESCE(unlocked_at, now()) WHERE event_id = ${eventId}`;
+    if (!event.active_project_id) {
+      const first = await tx<{ id: string }[]>`
+        SELECT id FROM projects WHERE event_id = ${eventId} ORDER BY position LIMIT 1`;
+      if (first[0]) {
+        await tx`UPDATE events SET active_project_id = ${first[0].id}, updated_at = now() WHERE id = ${eventId}`;
+      }
+    }
+    await insertAudit(tx, eventId, "project.unlock_all", {});
     revision = await bumpRevision(tx, eventId);
   });
   hub.publish(eventId, revision);

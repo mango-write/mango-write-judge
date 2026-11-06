@@ -1,5 +1,5 @@
 <script setup lang="ts">
-// 评分页：每评分项一卡（Slider + 数字输入双通道），底部固定操作栏（自动保存态 +
+// 评分页：每评分项一卡（快捷档位 + 微调步进 + Slider + 数字输入），底部固定操作栏（自动保存态 +
 // 确认提交）。加权总分经 @mango-write-judge/domain 同一实现计算，服务端为准。
 import { computed, onMounted, onUnmounted, ref, watch } from "vue";
 import { useI18n } from "vue-i18n";
@@ -47,6 +47,15 @@ const canSubmit = computed(
 const version = computed(() => evaluation.value?.version ?? 0);
 const unlockedBanner = computed(() => evaluation.value?.status === "submitted" && canSubmit.value);
 
+const nextPendingProject = computed(() => {
+  if (!snapshot.value) return null;
+  return (
+    snapshot.value.projects.find(
+      (p) => p.id !== props.projectId && p.unlocked && p.evaluation?.status !== "submitted",
+    ) ?? null
+  );
+});
+
 const myTotalText = computed(() => {
   if (!snapshot.value) return "—";
   const criteria = snapshot.value.criteria.map((c) => ({ id: c.id, weightPercent: c.weightPercent }));
@@ -80,6 +89,7 @@ useRevisionStream("/judge/stream", () => {
 
 function onScoreChange(criterionId: string) {
   if (readonly.value) return;
+  void criterionId;
   highlightMissing.value = null;
   saveState.value = "dirty";
   if (saveTimer) clearTimeout(saveTimer);
@@ -155,7 +165,11 @@ async function submit() {
     } else {
       toast.add({
         severity: "error",
-        detail: t(error instanceof Error ? `errors.${(error as { code?: string }).code ?? "internal_error"}` : "errors.internal_error"),
+        detail: t(
+          error instanceof Error
+            ? `errors.${(error as { code?: string }).code ?? "internal_error"}`
+            : "errors.internal_error",
+        ),
         life: 5000,
       });
     }
@@ -171,6 +185,14 @@ watch(readonly, (locked) => {
   }
 });
 
+watch(
+  () => props.projectId,
+  () => {
+    saveState.value = "idle";
+    void refresh();
+  },
+);
+
 onMounted(refresh);
 onUnmounted(() => {
   if (saveTimer) clearTimeout(saveTimer);
@@ -181,36 +203,52 @@ onUnmounted(() => {
 </script>
 
 <template>
-  <div v-if="snapshot && project" class="tw:mx-auto tw:flex tw:max-w-[640px] tw:flex-col tw:px-4 tw-pb-32">
-    <header class="tw:sticky tw-top-0 tw:z-10 tw:-mx-4 tw:px-4 tw-py-4" style="background: var(--color-bg-page, var(--color-canvas))">
-      <Button
-        :label="t('common.back')"
-        icon="pi pi-arrow-left"
-        severity="secondary"
-        text
-        size="small"
-        @click="router.push(`/judge/${props.slug}/projects`)"
-      />
+  <div v-if="snapshot && project" class="tw:mx-auto tw:flex tw:max-w-[640px] tw:flex-col tw:px-4 tw:pb-32">
+    <header
+      class="tw:sticky tw:top-0 tw:z-10 tw:-mx-4 tw:border-b tw:border-line tw:px-4 tw:py-3"
+      style="background: var(--color-bg-page, var(--color-canvas))"
+    >
+      <div class="tw:flex tw:items-center tw:justify-between">
+        <Button
+          :label="t('common.back')"
+          icon="pi pi-arrow-left"
+          severity="secondary"
+          text
+          @click="router.push(`/judge/${props.slug}/projects`)"
+        />
+        <div class="tw:flex tw:items-center tw:gap-2">
+          <span class="tw:rounded-full tw:bg-surface-muted tw:px-3 tw:py-1 tw:text-sm">
+            {{ t("judge.score.myScore") }}：<span class="tw:font-mono tw:text-base tw:font-bold">{{ myTotalText }}</span>
+          </span>
+          <span v-if="version > 0" class="tw:text-xs tw:text-faint">
+            {{ t("judge.score.versionTag", { version }) }}
+          </span>
+        </div>
+      </div>
       <div class="tw:mt-2">
         <div class="tw:text-xs tw:text-faint">#{{ project.position }} · {{ snapshot.event.name }}</div>
-        <h1 class="tw:text-lg tw:font-semibold">{{ project.name }}</h1>
+        <h1 class="tw:text-lg tw:font-bold tw:text-default">{{ project.name }}</h1>
         <div v-if="project.teamName" class="tw:text-sm tw:text-muted">{{ project.teamName }}</div>
-      </div>
-      <div class="tw:mt-2 tw:flex tw:items-center tw-gap-2">
-        <span class="tw:rounded-full tw:bg-surface-muted tw:px-3 tw:py-1 tw-text-sm">
-          {{ t("judge.score.myScore") }}：<span class="tw:text-base tw:font-bold">{{ myTotalText }}</span>
-        </span>
-        <span v-if="version > 0" class="tw:text-xs tw:text-faint">{{ t("judge.score.versionTag", { version }) }}</span>
+        <div v-if="project.summary" class="tw:mt-1 tw:text-xs tw:text-faint">{{ project.summary }}</div>
       </div>
     </header>
 
-    <div v-if="snapshot.event.status === 'closed'" class="tw:mt-2 tw:rounded-xl tw:bg-surface-muted tw:px-4 tw:py-3 tw-text-sm tw:text-muted">
+    <div
+      v-if="snapshot.event.status === 'closed'"
+      class="tw:mt-3 tw:rounded-xl tw:bg-surface-muted tw:px-4 tw:py-3 tw:text-sm tw:text-muted"
+    >
       {{ t("judge.score.closedBanner") }}
     </div>
-    <div v-else-if="readonly" class="tw:mt-2 tw:rounded-xl tw:bg-warning/10 tw:px-4 tw:py-3 tw-text-sm tw:text-warning">
+    <div
+      v-else-if="readonly"
+      class="tw:mt-3 tw:rounded-xl tw:bg-warning/10 tw:px-4 tw:py-3 tw:text-sm tw:text-warning"
+    >
       {{ t("judge.score.readonly") }}
     </div>
-    <div v-else-if="unlockedBanner" class="tw:mt-2 tw:rounded-xl tw:bg-success/10 tw:px-4 tw:py-3 tw:text-sm tw:text-success">
+    <div
+      v-else-if="unlockedBanner"
+      class="tw:mt-3 tw:rounded-xl tw:bg-success/10 tw:px-4 tw:py-3 tw:text-sm tw:text-success"
+    >
       {{ t("judge.score.unlockedBanner") }}
     </div>
 
@@ -232,7 +270,7 @@ onUnmounted(() => {
       class="tw:fixed tw:bottom-0 tw:left-0 tw:right-0 tw:z-20 tw:border-t tw:border-line tw:bg-surface judge-footer-safe"
       style="min-height: 56px"
     >
-      <div class="tw:mx-auto tw-flex tw:max-w-[640px] tw:items-center tw:gap-3 tw:px-4 tw-py-3">
+      <div class="tw:mx-auto tw:flex tw:max-w-[640px] tw:items-center tw:gap-3 tw:px-4 tw:py-3">
         <button
           v-if="saveState === 'error'"
           class="tw:text-sm tw:font-medium tw:text-danger"
@@ -244,7 +282,15 @@ onUnmounted(() => {
         <span v-else class="tw:text-sm tw:text-faint">
           {{ saveState === "saving" ? t("common.saving") : saveState === "saved" ? t("common.saved") : "" }}
         </span>
-        <div class="tw:ml-auto">
+        <div class="tw:ml-auto tw:flex tw:items-center tw:gap-2">
+          <Button
+            v-if="nextPendingProject && version > 0"
+            :label="t('judge.score.nextProject', { name: nextPendingProject.name })"
+            severity="secondary"
+            outlined
+            style="min-height: 44px"
+            @click="router.push(`/judge/${props.slug}/projects/${nextPendingProject.id}`)"
+          />
           <Button
             v-if="canSubmit"
             :label="version > 0 ? t('judge.score.resubmit') : t('judge.score.submit')"
@@ -252,21 +298,38 @@ onUnmounted(() => {
             style="min-height: 44px"
             @click="openConfirm"
           />
+          <Button
+            v-else
+            :label="t('judge.score.backToList')"
+            severity="secondary"
+            outlined
+            style="min-height: 44px"
+            @click="router.push(`/judge/${props.slug}/projects`)"
+          />
         </div>
       </div>
     </nav>
 
     <Dialog v-model:visible="confirming" modal :header="t('judge.score.confirmTitle')" class="tw:min-w-80">
-      <div class="tw-space-y-2">
-        <div class="tw-flex tw:justify-between tw-border-b tw-border-line tw-py-2" v-for="criterion in snapshot.criteria" :key="criterion.id">
-          <span>{{ criterion.name }}<span class="tw:ml-1 tw:text-xs tw:text-faint">{{ criterion.weightPercent }}%</span></span>
-          <span class="tw:font-semibold">{{ scores[criterion.id] !== undefined ? tenthsToText(scores[criterion.id]!) : "—" }}</span>
+      <div class="tw:space-y-2">
+        <div
+          v-for="criterion in snapshot.criteria"
+          :key="criterion.id"
+          class="tw:flex tw:justify-between tw:border-b tw:border-line tw:py-2"
+        >
+          <span>
+            {{ criterion.name }}
+            <span class="tw:ml-1 tw:text-xs tw:text-faint">{{ criterion.weightPercent }}%</span>
+          </span>
+          <span class="tw:font-mono tw:font-semibold">
+            {{ scores[criterion.id] !== undefined ? tenthsToText(scores[criterion.id]!) : "—" }}
+          </span>
         </div>
-        <div class="tw:flex tw:justify-between tw-py-2 tw-text-base">
+        <div class="tw:flex tw:justify-between tw:py-2 tw:text-base">
           <span class="tw:font-semibold">{{ t("judge.score.confirmTotal") }}</span>
-          <span class="tw:font-bold">{{ myTotalText }}</span>
+          <span class="tw:font-mono tw:font-bold">{{ myTotalText }}</span>
         </div>
-        <p v-if="version > 0" class="tw-text-sm tw:text-warning">
+        <p v-if="version > 0" class="tw:text-sm tw:text-warning">
           {{ t("judge.score.confirmOverwrite", { old: version, new: version + 1 }) }}
         </p>
       </div>

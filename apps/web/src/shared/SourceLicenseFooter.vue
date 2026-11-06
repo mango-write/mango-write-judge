@@ -6,7 +6,7 @@ const sourceUrl = import.meta.env.VITE_JUDGING_SOURCE_URL as string | undefined;
 <template>
   <footer class="tw:mt-8 tw:flex tw:items-center tw:gap-2 tw:py-4 tw:text-xs tw:text-faint">
     <span>MangoWrite Judge · AGPL-3.0-or-later</span>
-    <a v-if="sourceUrl" :href="sourceUrl" target="_blank" rel="noopener" class="tw:underline hover:tw:text-muted">
+    <a v-if="sourceUrl" :href="sourceUrl" target="_blank" rel="noopener" class="tw:underline tw:hover:text-muted">
       源代码
     </a>
   </footer>

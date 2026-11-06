@@ -20,6 +20,7 @@
 - **postgres.js 的对象参数必须 `tx.json(x)`**；`sql.begin` 的选项串是拼进 `begin <options>` 的，要写全 `isolation level repeatable read`。
 - **SSE 只推 revision**，客户端重拉快照；草稿保存不推。前端 `useRevisionStream` 带 20s 看门狗与连接重建——EventSource 对 401/部分错误不会自动重连，认证完成前不要创建流（大屏/评委的门组件先换会话再挂直播子组件，就是这个原因）。
 - **PrimeVue `Dialog` 需要 `:visible` 绑定**，纯 `v-if` 不显示；`InputNumber` 在 blur 才提交模型，E2E 填完要补 Tab。
+- **UI 硬规则：组件禁用 `size="small"`（回落默认尺寸），组件间必须有 gap**。Tailwind 前缀是 `tw:` 且**前缀要写在变体前**（`tw:hover:underline` / `tw:lg:grid-cols-3`）——写成 `hover:tw:*` / `lg:tw:*` 是死类，编译器不生成规则（4.3.4 实测），整页布局会静默碎掉。
 - **配置写都带 `expectedRevision`**（乐观并发）；`admin` 路由的 404/409/422 语义见 `packages/contracts/src/errors.ts`。
 - **测试库硬校验**：`mango_judge_test` / `judge_e2e`，别的库名直接拒绝启动。
 - **Vitest 4 没有 `poolOptions.forks.singleFork`**，DB 套件用 `fileParallelism: false` 串行。

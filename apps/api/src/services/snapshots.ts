@@ -15,6 +15,7 @@ import type {
 
 import type { Sql, Tx } from "../db/client";
 import { notFound } from "../http/errors";
+import { displayInviteUrl, judgeInviteUrl } from "./config";
 import { computeLiveResults } from "./results";
 import { readTx, type EventRow } from "./shared";
 
@@ -32,7 +33,7 @@ async function loadSnapshotResults(tx: Tx, event: EventRow) {
 }
 
 /** 管理端完整现场快照：配置 + 提交矩阵 + 结果（闭幕后读快照）。 */
-export async function getAdminSnapshot(sql: Sql, eventId: string): Promise<AdminSnapshotDto> {
+export async function getAdminSnapshot(sql: Sql, eventId: string, inviteBaseUrl = ""): Promise<AdminSnapshotDto> {
   return readTx(sql, async (tx) => {
     const event = await loadEventForRead(tx, eventId);
     const criteria = await tx<(CriterionWeight & { name: string; description: string; position: number })[]>`
@@ -43,8 +44,8 @@ export async function getAdminSnapshot(sql: Sql, eventId: string): Promise<Admin
     >`
       SELECT id, name, team_name, summary, position, unlocked_at FROM projects
       WHERE event_id = ${eventId} ORDER BY position`;
-    const judges = await tx<{ id: string; name: string; created_at: Date }[]>`
-      SELECT id, name, created_at FROM judges WHERE event_id = ${eventId} ORDER BY created_at, id`;
+    const judges = await tx<{ id: string; name: string; invite_token: string; created_at: Date }[]>`
+      SELECT id, name, invite_token, created_at FROM judges WHERE event_id = ${eventId} ORDER BY created_at, id`;
     const evaluations = await tx<
       { id: string; judge_id: string; project_id: string; status: "draft" | "submitted"; version: number; submitted_at: Date | null }[]
     >`
@@ -118,6 +119,7 @@ export async function getAdminSnapshot(sql: Sql, eventId: string): Promise<Admin
         status: event.status,
         revision: event.revision,
         displayMode: event.display_mode,
+        displayInviteUrl: event.display_token ? displayInviteUrl(inviteBaseUrl, event.slug, event.display_token) : "",
         revealedAt: event.revealed_at ? event.revealed_at.toISOString() : null,
         closedAt: event.closed_at ? event.closed_at.toISOString() : null,
         activeProjectId: event.active_project_id,
@@ -137,7 +139,12 @@ export async function getAdminSnapshot(sql: Sql, eventId: string): Promise<Admin
           unlockedAt: p.unlocked_at ? p.unlocked_at.toISOString() : null,
           active: event.active_project_id === p.id,
         })),
-        judges: judges.map((j) => ({ id: j.id, name: j.name, createdAt: j.created_at.toISOString() })),
+        judges: judges.map((j) => ({
+          id: j.id,
+          name: j.name,
+          inviteUrl: j.invite_token ? judgeInviteUrl(inviteBaseUrl, event.slug, j.invite_token) : "",
+          createdAt: j.created_at.toISOString(),
+        })),
         weightsSum,
         startCheck: {
           ok: check.ok,
@@ -285,8 +292,8 @@ export async function getDisplaySnapshot(sql: Sql, eventId: string): Promise<Dis
           judgeCount: judgeRows[0]?.count ?? 0,
         };
       }
-      const project = await tx<{ position: number; name: string; team_name: string }[]>`
-        SELECT position, name, team_name FROM projects
+      const project = await tx<{ position: number; name: string; team_name: string; summary: string }[]>`
+        SELECT position, name, team_name, summary FROM projects
         WHERE id = ${event.active_project_id} AND event_id = ${eventId}`;
       const submitted = await tx<{ count: number }[]>`
         SELECT count(*)::int AS count FROM evaluations
@@ -297,7 +304,12 @@ export async function getDisplaySnapshot(sql: Sql, eventId: string): Promise<Dis
         eventName: event.name,
         status: event.status,
         currentProject: project[0]
-          ? { position: project[0].position, name: project[0].name, teamName: project[0].team_name }
+          ? {
+              position: project[0].position,
+              name: project[0].name,
+              teamName: project[0].team_name,
+              ...(project[0].summary ? { summary: project[0].summary } : {}),
+            }
           : null,
         submittedCount: submitted[0]?.count ?? 0,
         judgeCount: judgeRows[0]?.count ?? 0,

@@ -1,5 +1,4 @@
 import { Hono } from "hono";
-import { getCookie } from "hono/cookie";
 
 import {
   activeProjectRequest,
@@ -18,9 +17,9 @@ import {
 } from "@mango-write-judge/contracts";
 
 import {
-  SESSION_COOKIE,
   clearSessionCookie,
   createSession,
+  getSessionToken,
   revokeSession,
   setSessionCookie,
 } from "../auth/session";
@@ -29,12 +28,14 @@ import { createRateLimiter } from "../http/rate-limit";
 import {
   closeEvent,
   createEvent,
+  deleteEvent,
   getEventDetail,
   listEvents,
   patchEvent,
   setActiveProject,
   setDisplayMode,
   startEvent,
+  unlockAllProjects,
 } from "../services/events";
 import {
   createCriterion,
@@ -54,7 +55,7 @@ import {
   rotateDisplayToken,
   rotateJudgeToken,
 } from "../services/config";
-import { revokeUnlock, unlockEvaluation } from "../services/evaluations";
+import { revokeUnlock, unlockAllEvaluations, unlockEvaluation } from "../services/evaluations";
 import { exportResultsCsv, exportScoresCsv } from "../services/exports";
 import { getAdminSnapshot } from "../services/snapshots";
 import { getEvent } from "../services/shared";
@@ -83,9 +84,9 @@ export function createAdminRoutes(deps: RouteDeps): Hono<AppEnv> {
   });
 
   app.post("/logout", async (c) => {
-    const token = getCookie(c, SESSION_COOKIE);
+    const token = getSessionToken(c, "admin");
     if (token) await revokeSession(sql, token);
-    clearSessionCookie(c);
+    clearSessionCookie(c, "admin");
     return c.json({ ok: true });
   });
 
@@ -97,14 +98,19 @@ export function createAdminRoutes(deps: RouteDeps): Hono<AppEnv> {
 
   app.post("/events", async (c) => {
     const body = await readJson(c, createEventRequest);
-    return c.json(await createEvent(sql, body), 201);
+    return c.json(await createEvent(sql, body, config.inviteBaseUrl), 201);
   });
 
-  app.get("/events/:id", async (c) => c.json(await getEventDetail(sql, c.req.param("id"))));
+  app.get("/events/:id", async (c) => c.json(await getEventDetail(sql, c.req.param("id"), config.inviteBaseUrl)));
 
   app.patch("/events/:id", async (c) => {
     const body = await readJson(c, patchEventRequest);
-    return c.json(await patchEvent(sql, c.req.param("id"), body));
+    return c.json(await patchEvent(sql, c.req.param("id"), body, config.inviteBaseUrl));
+  });
+
+  app.delete("/events/:id", async (c) => {
+    await deleteEvent(sql, c.req.param("id"));
+    return c.json({ ok: true });
   });
 
   app.post("/events/:id/start", async (c) => c.json(await startEvent(sql, c.req.param("id"))));
@@ -112,6 +118,10 @@ export function createAdminRoutes(deps: RouteDeps): Hono<AppEnv> {
   app.post("/events/:id/active-project", async (c) => {
     const body = await readJson(c, activeProjectRequest);
     return c.json(await setActiveProject(sql, c.req.param("id"), body.projectId));
+  });
+
+  app.post("/events/:id/projects/unlock-all", async (c) => {
+    return c.json(await unlockAllProjects(sql, c.req.param("id")));
   });
 
   app.post("/events/:id/display-mode", async (c) => {
@@ -124,7 +134,9 @@ export function createAdminRoutes(deps: RouteDeps): Hono<AppEnv> {
     return c.json(await closeEvent(sql, c.req.param("id")));
   });
 
-  app.get("/events/:id/snapshot", async (c) => c.json(await getAdminSnapshot(sql, c.req.param("id"))));
+  app.get("/events/:id/snapshot", async (c) =>
+    c.json(await getAdminSnapshot(sql, c.req.param("id"), config.inviteBaseUrl)),
+  );
 
   app.get("/events/:id/stream", async (c) => {
     const eventId = c.req.param("id");
@@ -260,6 +272,10 @@ export function createAdminRoutes(deps: RouteDeps): Hono<AppEnv> {
   });
 
   // ---------- 解锁 ----------
+
+  app.post("/events/:id/evaluations/unlock-all", async (c) => {
+    return c.json(await unlockAllEvaluations(sql, c.req.param("id")));
+  });
 
   app.post("/events/:id/evaluations/:evaluationId/unlock", async (c) => {
     return c.json(await unlockEvaluation(sql, c.req.param("id"), c.req.param("evaluationId")));

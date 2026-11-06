@@ -3,8 +3,7 @@ import { createHash, timingSafeEqual } from "node:crypto";
 import type { Context, MiddlewareHandler } from "hono";
 import type { ZodType } from "zod";
 
-import { getCookie } from "hono/cookie";
-import { SESSION_COOKIE, lookupSession, type SessionRow } from "../auth/session";
+import { getSessionToken, lookupSession, type SessionRow } from "../auth/session";
 import { AppError, unauthorized } from "../http/errors";
 
 export interface RouteDeps {
@@ -42,7 +41,7 @@ export async function requireRole(
   sql: import("../db/client").Sql,
   role: SessionRow["role"],
 ): Promise<SessionRow> {
-  const session = await lookupSession(sql, getCookie(c, SESSION_COOKIE));
+  const session = await lookupSession(sql, getSessionToken(c, role));
   if (!session || session.role !== role) throw unauthorized();
   return session;
 }

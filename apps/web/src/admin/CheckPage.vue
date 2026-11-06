@@ -89,13 +89,13 @@ onMounted(load);
         </div>
       </dl>
 
-      <ul v-if="issues.length" class="tw:mt-4 tw:rounded-xl tw:bg-danger/10 tw:p-4 tw-text-sm tw-text-danger">
+      <ul v-if="issues.length" class="tw:mt-4 tw:rounded-xl tw:bg-danger/10 tw:p-4 tw:text-sm tw:text-danger">
         <li v-for="issue in issues" :key="issue">{{ issue }}</li>
       </ul>
       <p class="tw:mt-4 tw:text-sm tw:text-muted">{{ t("admin.check.freezeNotice") }}</p>
       <Button class="tw:mt-4" :label="t('admin.check.start')" :disabled="!check.ok" :loading="starting" @click="start" />
     </div>
-    <div v-else class="tw:rounded-2xl tw:border tw:border-line tw:bg-surface tw:p-6 tw-text-sm tw:text-muted">
+    <div v-else class="tw:rounded-2xl tw:border tw:border-line tw:bg-surface tw:p-6 tw:text-sm tw:text-muted">
       {{ t("admin.settings.frozenNotice") }}
     </div>
   </div>

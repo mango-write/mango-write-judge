@@ -12,6 +12,7 @@ export interface EventRow {
   display_mode: "progress" | "ranking";
   revealed_at: Date | null;
   revision: number;
+  display_token: string;
   display_token_hash: string;
   closed_at: Date | null;
   created_at: Date;

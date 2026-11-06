@@ -35,6 +35,8 @@ describe("建赛与启动冻结", () => {
     const detail = await harness.admin.get(`/api/admin/events/${seed.eventId}`);
     expect(detail.body.weightsSum).toBe(100);
     expect(detail.body.startCheck.ok).toBe(true);
+    expect(detail.body.displayInviteUrl).toContain("/display/demo-day#");
+    expect(detail.body.judges[0].inviteUrl).toContain("/judge/demo-day#");
 
     const dup = await harness.admin.post("/api/admin/events", { name: "x", slug: "demo-day" });
     expect(dup.status).toBe(409);
@@ -43,7 +45,7 @@ describe("建赛与启动冻结", () => {
     const start = await harness.admin.post(`/api/admin/events/${seed.eventId}/start`);
     expect(start.status).toBe(200);
 
-    // 启动后配置全部冻结
+    // 启动后评分项与删除被冻结，但项目/评委名称微调与全部开放评分可用
     const frozen = await harness.admin.post(`/api/admin/events/${seed.eventId}/criteria`, {
       name: "新项",
       weightPercent: 10,
@@ -54,6 +56,12 @@ describe("建赛与启动冻结", () => {
     expect((await harness.admin.delete(`/api/admin/events/${seed.eventId}/projects/${seed.projectIds[0]}?expectedRevision=99`)).status).toBe(409);
     // 再次启动
     expect(errorOf(await harness.admin.post(`/api/admin/events/${seed.eventId}/start`)).code).toBe("event_not_draft");
+
+    // 评审中可一键开放全部项目评分
+    const unlockAll = await harness.admin.post(`/api/admin/events/${seed.eventId}/projects/unlock-all`);
+    expect(unlockAll.status).toBe(200);
+    const afterUnlockAll = await harness.admin.get(`/api/admin/events/${seed.eventId}`);
+    expect(afterUnlockAll.body.projects.every((p: { unlockedAt: string | null }) => p.unlockedAt !== null)).toBe(true);
   });
 
   it("权重不合法不能启动（422 invalid_weights）", async () => {

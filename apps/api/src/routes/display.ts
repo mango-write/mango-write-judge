@@ -1,13 +1,12 @@
 import { Hono } from "hono";
-import { getCookie } from "hono/cookie";
 
 import { displaySessionRequest } from "@mango-write-judge/contracts";
 import { hashToken } from "../auth/tokens";
 
 import {
-  SESSION_COOKIE,
   clearSessionCookie,
   createSession,
+  getSessionToken,
   revokeSession,
   setSessionCookie,
 } from "../auth/session";
@@ -37,9 +36,9 @@ export function createDisplayRoutes(deps: RouteDeps): Hono<AppEnv> {
   });
 
   app.delete("/session", async (c) => {
-    const token = getCookie(c, SESSION_COOKIE);
+    const token = getSessionToken(c, "display");
     if (token) await revokeSession(sql, token);
-    clearSessionCookie(c);
+    clearSessionCookie(c, "display");
     return c.json({ ok: true });
   });
 

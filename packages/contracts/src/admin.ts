@@ -17,10 +17,17 @@ export const adminLoginRequest = z.object({
   password: z.string().min(1).max(1024),
 });
 
+export const createEventCriterionInput = z.object({
+  name: z.string().trim().min(1).max(200),
+  description: z.string().max(1000).default(""),
+  weightPercent: z.number().int().min(1).max(100),
+});
+
 export const createEventRequest = z.object({
   name: z.string().trim().min(1).max(200),
   slug: slugSchema.optional(),
   description: z.string().max(1000).default(""),
+  criteria: z.array(createEventCriterionInput).max(20).optional(),
 });
 
 export const patchEventRequest = z.object({
@@ -96,10 +103,11 @@ export interface EventSummaryDto {
 export interface JudgeDto {
   id: string;
   name: string;
+  inviteUrl: string;
   createdAt: string;
 }
 
-/** 评委邀请：token 只在创建/轮换/导入时返回一次。单个创建/轮换附带新 revision。 */
+/** 评委邀请：单个创建/轮换附带最新 inviteUrl 与新 revision。 */
 export interface JudgeInviteDto {
   id: string;
   name: string;
@@ -129,6 +137,7 @@ export interface EventDetailDto {
   status: z.infer<typeof eventStatusSchema>;
   revision: number;
   displayMode: z.infer<typeof displayModeSchema>;
+  displayInviteUrl: string;
   revealedAt: string | null;
   closedAt: string | null;
   activeProjectId: string | null;

@@ -1,13 +1,12 @@
 import { Hono } from "hono";
-import { getCookie } from "hono/cookie";
 
 import { judgeSessionRequest, saveDraftRequest, submitScoresRequest } from "@mango-write-judge/contracts";
 import { hashToken } from "../auth/tokens";
 
 import {
-  SESSION_COOKIE,
   clearSessionCookie,
   createSession,
+  getSessionToken,
   revokeSession,
   setSessionCookie,
 } from "../auth/session";
@@ -55,9 +54,9 @@ export function createJudgeRoutes(deps: RouteDeps): Hono<AppEnv> {
   });
 
   app.delete("/session", async (c) => {
-    const token = getCookie(c, SESSION_COOKIE);
+    const token = getSessionToken(c, "judge");
     if (token) await revokeSession(sql, token);
-    clearSessionCookie(c);
+    clearSessionCookie(c, "judge");
     return c.json({ ok: true });
   });
 
