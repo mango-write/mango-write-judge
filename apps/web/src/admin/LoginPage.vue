@@ -8,6 +8,7 @@ import { AppLogo, Button, InputText, useNotify } from "@mango-write/ui";
 import { api, ApiError } from "../lib/api";
 import { invalidateMe } from "../lib/session";
 import SourceLicenseFooter from "../shared/SourceLicenseFooter.vue";
+import ThemeToggle from "../shared/ThemeToggle.vue";
 
 const { t } = useI18n();
 const notify = useNotify();
@@ -36,6 +37,9 @@ async function submit() {
 
 <template>
   <div class="tw:flex tw:min-h-screen tw:flex-col tw:items-center tw:justify-center tw:bg-page tw:gap-8 tw:px-6">
+    <div class="tw:fixed tw:right-4 tw:top-4 tw:z-10">
+      <ThemeToggle />
+    </div>
     <div class="tw:flex tw:flex-col tw:items-center tw:gap-3">
       <AppLogo />
       <h1 class="tw:text-lg tw:font-semibold">{{ t("admin.login.title") }}</h1>

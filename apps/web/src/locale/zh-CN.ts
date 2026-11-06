@@ -28,6 +28,8 @@ export const zhCN = {
     saveFailed: "保存失败，点击重试",
     allEvents: "全部比赛",
     changePassword: "修改密码",
+    toLight: "切换到亮色",
+    toDark: "切换到暗色",
   },
   status: {
     draft: "草稿",

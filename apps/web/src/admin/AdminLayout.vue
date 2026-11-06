@@ -8,6 +8,7 @@ import { AppLogo, Button } from "@mango-write/ui";
 import { api } from "../lib/api";
 import { fetchMe, invalidateMe, type AdminMe } from "../lib/session";
 import SourceLicenseFooter from "../shared/SourceLicenseFooter.vue";
+import ThemeToggle from "../shared/ThemeToggle.vue";
 import ChangePasswordDialog from "./ChangePasswordDialog.vue";
 
 const router = useRouter();
@@ -57,6 +58,7 @@ async function logout() {
         />
 
         <div class="tw:ml-auto tw:flex tw:items-center tw:gap-2">
+          <ThemeToggle />
           <span v-if="me" class="tw:text-xs tw:text-faint">{{ me.name }}</span>
           <Button
             v-if="me?.role === 'super'"

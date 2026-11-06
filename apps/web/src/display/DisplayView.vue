@@ -1,16 +1,17 @@
 <script setup lang="ts">
 // 大屏门：链接 fragment 中的 token 换 HttpOnly 会话后渲染直播面。
 // EventSource 必须在会话建立后创建——401 会让浏览器永久关闭该连接。
-import { onMounted, ref } from "vue";
+import { onMounted, onUnmounted, ref } from "vue";
 import { useI18n } from "vue-i18n";
 
-import { AppLogo } from "@mango-write/ui";
+import { AppLogo, useThemePreference } from "@mango-write/ui";
 
 import { api } from "../lib/api";
 import DisplayLive from "./DisplayLive.vue";
 
 const props = defineProps<{ slug: string }>();
 const { t } = useI18n();
+const { preference, setTheme } = useThemePreference();
 
 const state = ref<"gate" | "exchanging" | "live">("gate");
 
@@ -25,6 +26,7 @@ async function exchange(token: string) {
   }
 }
 
+// 大屏固定深色；离开时还原用户的主题选择（无显式选择则回到跟随系统）
 onMounted(() => {
   document.documentElement.dataset.theme = "dark";
   const token = window.location.hash.startsWith("#") ? window.location.hash.slice(1) : "";
@@ -40,6 +42,11 @@ onMounted(() => {
     .catch(() => {
       state.value = "gate";
     });
+});
+
+onUnmounted(() => {
+  // 重新落定用户偏好，交还被大屏强占的 data-theme
+  setTheme(preference.value);
 });
 </script>
 
