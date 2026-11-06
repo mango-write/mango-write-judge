@@ -2,13 +2,9 @@
 import { onMounted, ref } from "vue";
 import { useI18n } from "vue-i18n";
 import { useRouter } from "vue-router";
-import { useConfirm } from "primevue/useconfirm";
-import { useToast } from "primevue/usetoast";
+import { ArrowRight, Plus, Trash2 } from "lucide-vue-next";
 
-import { PageHeader } from "@mango-write/ui";
-import Button from "primevue/button";
-import Dialog from "primevue/dialog";
-import InputText from "primevue/inputtext";
+import { Button, Dialog, InputText, PageHeader, useConfirm, useNotify } from "@mango-write/ui";
 
 import type { EventSummaryDto } from "@mango-write-judge/contracts";
 import { api } from "../lib/api";
@@ -16,7 +12,7 @@ import { formatDateTime } from "../lib/format";
 import StatusTag from "../shared/StatusTag.vue";
 
 const { t } = useI18n();
-const toast = useToast();
+const notify = useNotify();
 const confirm = useConfirm();
 const router = useRouter();
 
@@ -76,7 +72,7 @@ async function create() {
     showCreate.value = false;
     router.push(`/admin/events/${created.id}/settings`);
   } catch (error) {
-    toast.add({
+    notify.add({
       severity: "error",
       detail: t(
         error instanceof Error
@@ -94,7 +90,7 @@ function removeEvent(event: EventSummaryDto) {
   confirm.require({
     header: t("admin.events.deleteConfirmHeader"),
     message: t("admin.events.deleteConfirm", { name: event.name }),
-    icon: "pi pi-trash",
+    icon: Trash2,
     acceptLabel: t("common.delete"),
     rejectLabel: t("common.cancel"),
     accept: async () => {
@@ -102,7 +98,7 @@ function removeEvent(event: EventSummaryDto) {
         await api.delete(`/admin/events/${event.id}`);
         await load();
       } catch (error) {
-        toast.add({
+        notify.add({
           severity: "error",
           detail: t(
             error instanceof Error
@@ -129,7 +125,7 @@ onMounted(load);
   <div>
     <PageHeader :title="t('admin.events.title')" :subtitle="t('admin.events.subtitle')" flush>
       <template #actions>
-        <Button :label="t('admin.events.create')" icon="pi pi-plus" @click="openCreateModal('blank')" />
+        <Button :label="t('admin.events.create')" :icon="Plus" @click="openCreateModal('blank')" />
       </template>
     </PageHeader>
 
@@ -140,7 +136,7 @@ onMounted(load);
     >
       <div class="tw:text-base tw:font-medium tw:text-default">{{ t("admin.events.emptyHint") }}</div>
       <div class="tw:flex tw:flex-wrap tw:gap-3">
-        <Button :label="t('admin.events.create')" icon="pi pi-plus" @click="openCreateModal('roadshow')" />
+        <Button :label="t('admin.events.create')" :icon="Plus" @click="openCreateModal('roadshow')" />
       </div>
     </div>
     <div v-else class="tw:mt-6 tw:grid tw:gap-4 tw:sm:grid-cols-2 tw:lg:grid-cols-3">
@@ -174,7 +170,7 @@ onMounted(load);
           </span>
           <div class="tw:flex tw:items-center tw:gap-1">
             <Button
-              icon="pi pi-trash"
+              :icon="Trash2"
               severity="danger"
               text
               :aria-label="t('common.delete')"
@@ -188,7 +184,7 @@ onMounted(load);
                     ? t('admin.events.enterJudging')
                     : t('admin.events.enterClosed')
               "
-              icon="pi pi-arrow-right"
+              :icon="ArrowRight"
               icon-pos="right"
               severity="secondary"
               text
@@ -199,7 +195,12 @@ onMounted(load);
       </div>
     </div>
 
-    <Dialog v-model:visible="showCreate" modal :header="t('admin.events.create')" class="tw:w-full tw:max-w-lg">
+    <Dialog
+      v-model:open="showCreate"
+      modal
+      :title="t('admin.events.create')"
+      width="min(32rem, 92vw)"
+    >
       <form class="tw:flex tw:flex-col tw:gap-4" @submit.prevent="create">
         <div>
           <label class="tw:mb-1 tw:block tw:text-sm tw:font-medium">{{ t("admin.events.name") }}</label>
@@ -252,7 +253,7 @@ onMounted(load);
         </div>
         <div class="tw:flex tw:justify-end tw:gap-2 tw:pt-2">
           <Button :label="t('common.cancel')" severity="secondary" text @click="showCreate = false" />
-          <Button type="submit" :label="t('common.confirm')" :loading="creating" />
+          <Button type="submit" :label="t('common.ok')" :loading="creating" />
         </div>
       </form>
     </Dialog>

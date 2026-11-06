@@ -2,10 +2,17 @@
 import { computed, onMounted, ref } from "vue";
 import { useI18n } from "vue-i18n";
 import { useRoute, useRouter } from "vue-router";
-import { useConfirm } from "primevue/useconfirm";
-import { useToast } from "primevue/usetoast";
+import {
+  BarChart3,
+  CircleCheck,
+  CirclePlay,
+  Monitor,
+  Play,
+  SlidersHorizontal,
+  TriangleAlert,
+} from "lucide-vue-next";
 
-import Button from "primevue/button";
+import { Button, useConfirm, useNotify } from "@mango-write/ui";
 
 import type { EventDetailDto } from "@mango-write-judge/contracts";
 import { api } from "../lib/api";
@@ -17,7 +24,7 @@ const { t } = useI18n();
 const route = useRoute();
 const router = useRouter();
 const confirm = useConfirm();
-const toast = useToast();
+const notify = useNotify();
 
 const event = ref<EventDetailDto | null>(null);
 const starting = ref(false);
@@ -32,25 +39,25 @@ const tabs = computed(() => {
     {
       label: t("admin.nav.settings"),
       sub: countBadge,
-      icon: "pi pi-sliders-h",
+      icon: SlidersHorizontal,
       to: `${base}/settings`,
     },
     {
       label: t("admin.check.title"),
       sub: ev?.startCheck.ok ? "已就绪" : "待完善",
-      icon: "pi pi-check-circle",
+      icon: CircleCheck,
       to: `${base}/check`,
     },
     {
       label: t("admin.control.title"),
       sub: ev?.status === "judging" ? "进行中" : "",
-      icon: "pi pi-play-circle",
+      icon: CirclePlay,
       to: `${base}/control`,
     },
     {
       label: t("admin.results.title"),
       sub: ev?.status === "closed" ? "最终榜" : "实时榜",
-      icon: "pi pi-chart-bar",
+      icon: BarChart3,
       to: `${base}/results`,
     },
   ];
@@ -68,18 +75,18 @@ function quickStart() {
   confirm.require({
     header: t("admin.check.startConfirmHeader"),
     message: t("admin.check.startConfirm"),
-    icon: "pi pi-exclamation-triangle",
+    icon: TriangleAlert,
     acceptLabel: t("admin.check.start"),
     rejectLabel: t("common.cancel"),
     accept: async () => {
       starting.value = true;
       try {
         await api.post(`/admin/events/${event.value!.id}/start`);
-        toast.add({ severity: "success", detail: "比赛已启动，已进入现场导播台", life: 3000 });
+        notify.add({ severity: "success", detail: "比赛已启动，已进入现场导播台", life: 3000 });
         await load();
         router.push(`/admin/events/${props.id}/control`);
       } catch (error) {
-        toast.add({
+        notify.add({
           severity: "error",
           detail: t(`errors.${(error as { code?: string }).code ?? "internal_error"}`),
           life: 5000,
@@ -128,7 +135,7 @@ onMounted(load);
           <Button
             v-if="event.displayInviteUrl"
             :label="t('admin.control.openDisplayWindow')"
-            icon="pi pi-desktop"
+            :icon="Monitor"
             severity="secondary"
             outlined
             @click="openDisplayTab"
@@ -136,7 +143,7 @@ onMounted(load);
           <Button
             v-if="event.status === 'draft' && route.path !== `/admin/events/${id}/check`"
             :label="t('admin.check.start')"
-            icon="pi pi-play"
+            :icon="Play"
             :severity="event.startCheck.ok ? 'primary' : 'secondary'"
             :loading="starting"
             @click="quickStart"

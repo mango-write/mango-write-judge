@@ -1,6 +1,6 @@
-// 组件测试挂载辅助：i18n（zh-CN）+ PrimeVue（无主题运行时）。
+// 组件测试挂载辅助：i18n（zh-CN）。notify/confirm 由 useNotify/useConfirm 经
+// caller app 兜底自建，无需额外装配。
 import { createI18n } from "vue-i18n";
-import PrimeVue from "primevue/config";
 import type { Component } from "vue";
 
 import { messages } from "../locale";
@@ -12,7 +12,7 @@ export function testPlugins() {
     fallbackLocale: "zh-CN",
     messages: messages as unknown as { "zh-CN": Record<string, never> },
   });
-  return [PrimeVue, i18n];
+  return [i18n];
 }
 
 export function mountOptions(extra: Record<string, unknown> = {}) {

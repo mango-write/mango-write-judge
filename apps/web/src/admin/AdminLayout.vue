@@ -1,8 +1,8 @@
 <script setup lang="ts">
 import { useRoute, useRouter } from "vue-router";
+import { ArrowLeft, LogOut } from "lucide-vue-next";
 
-import { AppLogo } from "@mango-write/ui";
-import Button from "primevue/button";
+import { AppLogo, Button } from "@mango-write/ui";
 
 import { api } from "../lib/api";
 import SourceLicenseFooter from "../shared/SourceLicenseFooter.vue";
@@ -38,14 +38,14 @@ async function logout() {
         <Button
           v-if="route.path !== '/admin'"
           :label="$t('common.allEvents')"
-          icon="pi pi-arrow-left"
+          :icon="ArrowLeft"
           severity="secondary"
           text
           @click="router.push('/admin')"
         />
 
         <div class="tw:ml-auto tw:flex tw:items-center tw:gap-2">
-          <Button :label="$t('common.logout')" icon="pi pi-sign-out" severity="secondary" text @click="logout" />
+          <Button :label="$t('common.logout')" :icon="LogOut" severity="secondary" text @click="logout" />
         </div>
       </div>
     </header>

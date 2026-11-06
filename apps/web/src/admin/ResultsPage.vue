@@ -1,10 +1,9 @@
 <script setup lang="ts">
 import { computed, onMounted, ref } from "vue";
 import { useI18n } from "vue-i18n";
-import { useConfirm } from "primevue/useconfirm";
-import { useToast } from "primevue/usetoast";
+import { ChevronDown, ChevronRight, Download, Lock } from "lucide-vue-next";
 
-import Button from "primevue/button";
+import { Button, useConfirm, useNotify } from "@mango-write/ui";
 
 import type { AdminSnapshotDto } from "@mango-write-judge/contracts";
 import { api } from "../lib/api";
@@ -14,7 +13,7 @@ import { useRevisionStream } from "../lib/sse";
 const props = defineProps<{ id: string }>();
 const { t } = useI18n();
 const confirm = useConfirm();
-const toast = useToast();
+const notify = useNotify();
 
 const snapshot = ref<AdminSnapshotDto | null>(null);
 const detailProject = ref<string | null>(null);
@@ -53,16 +52,16 @@ function confirmCloseEvent() {
       missingCount > 0
         ? t("admin.control.closeConfirmWithMissing", { count: missingCount })
         : t("admin.control.closeConfirmAllComplete"),
-    icon: "pi pi-lock",
+    icon: Lock,
     acceptLabel: t("admin.control.closeEvent"),
     rejectLabel: t("common.cancel"),
     accept: async () => {
       try {
         await api.post(`/admin/events/${target.id}/close`, { confirm: true });
-        toast.add({ severity: "success", detail: t("admin.control.closedSuccess"), life: 4000 });
+        notify.add({ severity: "success", detail: t("admin.control.closedSuccess"), life: 4000 });
         await refresh();
       } catch (error) {
-        toast.add({
+        notify.add({
           severity: "error",
           detail: t(`errors.${(error as { code?: string }).code ?? "internal_error"}`),
           life: 5000,
@@ -92,21 +91,21 @@ onMounted(refresh);
         <Button
           v-if="event.status === 'judging'"
           :label="t('admin.control.closeEvent')"
-          icon="pi pi-lock"
+          :icon="Lock"
           severity="danger"
           outlined
           @click="confirmCloseEvent"
         />
         <Button
           :label="t('admin.results.exportResults')"
-          icon="pi pi-download"
+          :icon="Download"
           severity="secondary"
           outlined
           @click="openExport('results.csv')"
         />
         <Button
           :label="t('admin.results.exportScores')"
-          icon="pi pi-download"
+          :icon="Download"
           severity="secondary"
           outlined
           @click="openExport('scores.csv')"
@@ -142,10 +141,10 @@ onMounted(refresh);
               <span v-else>{{ row.rank ?? "—" }}</span>
             </td>
             <td class="tw:py-3 tw:font-medium">
-              <i
-                class="pi tw:mr-1"
-                :class="detailProject === row.projectId ? 'pi-chevron-down' : 'pi-chevron-right'"
-                style="font-size: 0.7rem"
+              <component
+                :is="detailProject === row.projectId ? ChevronDown : ChevronRight"
+                class="tw:mr-1 tw:inline-block"
+                :size="12"
               />
               <span>{{ projectName(row.projectId) }}</span>
               <span v-if="projectTeam(row.projectId)" class="tw:ml-2 tw:text-xs tw:text-muted">

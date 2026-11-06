@@ -1,14 +1,22 @@
 <script setup lang="ts">
 import { computed, onMounted, onUnmounted, ref } from "vue";
 import { useI18n } from "vue-i18n";
-import { useConfirm } from "primevue/useconfirm";
-import { useToast } from "primevue/usetoast";
+import {
+  ChevronDown,
+  ChevronLeft,
+  ChevronRight,
+  Copy,
+  ExternalLink,
+  Lock,
+  LockOpen,
+  QrCode,
+  RefreshCw,
+  TriangleAlert,
+} from "lucide-vue-next";
 
 import QRCode from "qrcode";
 
-import Button from "primevue/button";
-import Dialog from "primevue/dialog";
-import ProgressBar from "primevue/progressbar";
+import { Button, Dialog, ProgressBar, useConfirm, useNotify } from "@mango-write/ui";
 
 import type { AdminSnapshotDto, MatrixCellDto } from "@mango-write-judge/contracts";
 import { api } from "../lib/api";
@@ -16,7 +24,7 @@ import { useRevisionStream } from "../lib/sse";
 
 const props = defineProps<{ id: string }>();
 const { t } = useI18n();
-const toast = useToast();
+const notify = useNotify();
 const confirm = useConfirm();
 
 const snapshot = ref<AdminSnapshotDto | null>(null);
@@ -63,7 +71,7 @@ async function setProject(index: number) {
     await api.post(`/admin/events/${event.value!.id}/active-project`, { projectId: project.id });
     await refresh();
   } catch (error) {
-    toast.add({
+    notify.add({
       severity: "error",
       detail: t(`errors.${(error as { code?: string }).code ?? "internal_error"}`),
       life: 5000,
@@ -76,10 +84,10 @@ async function unlockAllProjects() {
   busy.value = true;
   try {
     await api.post(`/admin/events/${event.value.id}/projects/unlock-all`);
-    toast.add({ severity: "success", detail: t("admin.control.unlockAllProjectsDone"), life: 2500 });
+    notify.add({ severity: "success", detail: t("admin.control.unlockAllProjectsDone"), life: 2500 });
     await refresh();
   } catch (error) {
-    toast.add({
+    notify.add({
       severity: "error",
       detail: t(`errors.${(error as { code?: string }).code ?? "internal_error"}`),
       life: 5000,
@@ -101,7 +109,7 @@ function switchMode(mode: "progress" | "ranking") {
       });
       await refresh();
     } catch (error) {
-      toast.add({
+      notify.add({
         severity: "error",
         detail: t(`errors.${(error as { code?: string }).code ?? "internal_error"}`),
         life: 5000,
@@ -112,8 +120,8 @@ function switchMode(mode: "progress" | "ranking") {
     confirm.require({
       header: t("admin.control.revealConfirmHeader"),
       message: t("admin.control.revealConfirm"),
-      icon: "pi pi-exclamation-triangle",
-      acceptLabel: t("common.confirm"),
+      icon: TriangleAlert,
+      acceptLabel: t("common.ok"),
       rejectLabel: t("common.cancel"),
       accept: doSwitch,
     });
@@ -148,7 +156,7 @@ async function rotateDisplay() {
   } catch {
     displayInvite.value = rotated;
   }
-  toast.add({ severity: "success", detail: "大屏链接已重置", life: 2500 });
+  notify.add({ severity: "success", detail: "大屏链接已重置", life: 2500 });
   await refresh();
 }
 
@@ -163,16 +171,16 @@ function unlockCell(cell: MatrixCellDto) {
   confirm.require({
     header: t("admin.control.unlock"),
     message: t("admin.control.unlockConfirm"),
-    icon: "pi pi-unlock",
+    icon: LockOpen,
     acceptLabel: t("admin.control.unlock"),
     rejectLabel: t("common.cancel"),
     accept: async () => {
       try {
         await api.post(`/admin/events/${target.id}/evaluations/${cell.evaluationId}/unlock`);
-        toast.add({ severity: "success", detail: "已解锁，等待评委重新提交", life: 3000 });
+        notify.add({ severity: "success", detail: "已解锁，等待评委重新提交", life: 3000 });
         await refresh();
       } catch (error) {
-        toast.add({
+        notify.add({
           severity: "error",
           detail: t(`errors.${(error as { code?: string }).code ?? "internal_error"}`),
           life: 5000,
@@ -187,10 +195,10 @@ async function unlockAllEvaluations() {
   if (!target) return;
   try {
     await api.post(`/admin/events/${target.id}/evaluations/unlock-all`);
-    toast.add({ severity: "success", detail: "已解锁全部已提交评分，评委可修改重交", life: 3000 });
+    notify.add({ severity: "success", detail: "已解锁全部已提交评分，评委可修改重交", life: 3000 });
     await refresh();
   } catch (error) {
-    toast.add({
+    notify.add({
       severity: "error",
       detail: t(`errors.${(error as { code?: string }).code ?? "internal_error"}`),
       life: 5000,
@@ -203,7 +211,7 @@ function revokeCell(cell: MatrixCellDto) {
   confirm.require({
     header: t("admin.control.revokeUnlock"),
     message: t("admin.control.revokeConfirm"),
-    icon: "pi pi-lock",
+    icon: Lock,
     acceptLabel: t("admin.control.revokeUnlock"),
     rejectLabel: t("common.cancel"),
     accept: async () => {
@@ -211,7 +219,7 @@ function revokeCell(cell: MatrixCellDto) {
         await api.delete(`/admin/events/${target.id}/evaluations/${cell.evaluationId}/unlock`);
         await refresh();
       } catch (error) {
-        toast.add({
+        notify.add({
           severity: "error",
           detail: t(`errors.${(error as { code?: string }).code ?? "internal_error"}`),
           life: 5000,
@@ -231,16 +239,16 @@ function confirmCloseEvent() {
       missingCount > 0
         ? t("admin.control.closeConfirmWithMissing", { count: missingCount })
         : t("admin.control.closeConfirmAllComplete"),
-    icon: "pi pi-lock",
+    icon: Lock,
     acceptLabel: t("admin.control.closeEvent"),
     rejectLabel: t("common.cancel"),
     accept: async () => {
       try {
         await api.post(`/admin/events/${target.id}/close`, { confirm: true });
-        toast.add({ severity: "success", detail: t("admin.control.closedSuccess"), life: 4000 });
+        notify.add({ severity: "success", detail: t("admin.control.closedSuccess"), life: 4000 });
         await refresh();
       } catch (error) {
-        toast.add({
+        notify.add({
           severity: "error",
           detail: t(`errors.${(error as { code?: string }).code ?? "internal_error"}`),
           life: 5000,
@@ -253,7 +261,7 @@ function confirmCloseEvent() {
 async function copyText(text: string) {
   try {
     await navigator.clipboard?.writeText(text);
-    toast.add({ severity: "success", detail: t("common.copied"), life: 1500 });
+    notify.add({ severity: "success", detail: t("common.copied"), life: 1500 });
   } catch {
     // 无剪贴板权限时忽略；链接已完整展示
   }
@@ -292,7 +300,7 @@ onUnmounted(() => {
           <Button
             v-if="event.status === 'judging' && !allProjectsUnlocked"
             :label="t('admin.control.unlockAllProjects')"
-            icon="pi pi-unlock"
+            :icon="LockOpen"
             severity="secondary"
             outlined
             :loading="busy"
@@ -337,7 +345,7 @@ onUnmounted(() => {
 
         <div class="tw:mt-4 tw:flex tw:flex-wrap tw:items-center tw:gap-2">
           <Button
-            icon="pi pi-chevron-left"
+            :icon="ChevronLeft"
             :label="t('admin.control.prev')"
             severity="secondary"
             outlined
@@ -345,7 +353,7 @@ onUnmounted(() => {
             @click="setProject(activeIndex - 1)"
           />
           <Button
-            icon="pi pi-chevron-right"
+            :icon="ChevronRight"
             icon-pos="right"
             :label="t('admin.control.next')"
             :disabled="event.status !== 'judging' || activeIndex >= event.projects.length - 1"
@@ -391,7 +399,7 @@ onUnmounted(() => {
           <Button
             v-if="event.revealedAt && event.status === 'judging'"
             :label="t('admin.control.unlockAll')"
-            icon="pi pi-unlock"
+            :icon="LockOpen"
             severity="warning"
             outlined
             @click="unlockAllEvaluations"
@@ -415,10 +423,10 @@ onUnmounted(() => {
                 >
                   <td class="tw:py-3 tw:pr-2 tw:text-faint">{{ index + 1 }}</td>
                   <td class="tw:py-3 tw:pr-2 tw:font-medium">
-                    <i
-                      class="pi tw:mr-1"
-                      :class="expandedProject === row.projectId ? 'pi-chevron-down' : 'pi-chevron-right'"
-                      style="font-size: 0.7rem"
+                    <component
+                      :is="expandedProject === row.projectId ? ChevronDown : ChevronRight"
+                      class="tw:mr-1 tw:inline-block"
+                      :size="12"
                     />
                     {{ event.projects.find((p) => p.id === row.projectId)?.name }}
                   </td>
@@ -502,7 +510,7 @@ onUnmounted(() => {
         <div class="tw:mt-4 tw:flex tw:flex-wrap tw:gap-2">
           <Button
             :label="t('admin.control.openDisplay')"
-            icon="pi pi-qrcode"
+            :icon="QrCode"
             severity="secondary"
             outlined
             @click="openDisplay"
@@ -510,7 +518,7 @@ onUnmounted(() => {
           <Button
             v-if="event.displayInviteUrl"
             :label="t('admin.control.openDisplayWindow')"
-            icon="pi pi-external-link"
+            :icon="ExternalLink"
             severity="secondary"
             text
             @click="openDisplayWindow()"
@@ -528,7 +536,7 @@ onUnmounted(() => {
           <Button
             class="tw:mt-4 tw:w-full"
             :label="t('admin.control.closeEvent')"
-            icon="pi pi-lock"
+            :icon="Lock"
             severity="danger"
             outlined
             @click="confirmCloseEvent"
@@ -548,12 +556,12 @@ onUnmounted(() => {
     </aside>
 
     <Dialog
-      :visible="displayInvite !== null"
+      :open="displayInvite !== null"
       modal
-      header="大屏链接"
-      class="tw:min-w-80"
+      title="大屏链接"
+      width="min(24rem, 92vw)"
       closable
-      @update:visible="(value) => { if (!value) displayInvite = null; }"
+      @update:open="(value) => { if (!value) displayInvite = null; }"
     >
       <div v-if="displayInvite" class="tw:flex tw:flex-col tw:items-center tw:gap-3">
         <img v-if="displayInvite.qrDataUrl" :src="displayInvite.qrDataUrl" alt="QR" class="tw:h-72 tw:w-72" />
@@ -561,20 +569,20 @@ onUnmounted(() => {
         <div class="tw:flex tw:flex-wrap tw:justify-center tw:gap-2">
           <Button
             :label="t('common.copy')"
-            icon="pi pi-copy"
+            :icon="Copy"
             severity="secondary"
             outlined
             @click="copyText(displayInvite!.inviteUrl)"
           />
           <Button
             :label="t('admin.control.openDisplayWindow')"
-            icon="pi pi-external-link"
+            :icon="ExternalLink"
             severity="primary"
             @click="openDisplayWindow(displayInvite!.inviteUrl)"
           />
           <Button
             :label="t('admin.settings.rotateDisplayToken')"
-            icon="pi pi-refresh"
+            :icon="RefreshCw"
             severity="secondary"
             text
             @click="rotateDisplay"

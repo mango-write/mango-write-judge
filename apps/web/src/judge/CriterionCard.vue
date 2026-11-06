@@ -3,8 +3,7 @@
 import { computed } from "vue";
 import { useI18n } from "vue-i18n";
 
-import InputNumber from "primevue/inputnumber";
-import Slider from "primevue/slider";
+import { InputNumber, Slider } from "@mango-write/ui";
 
 import { tenthsToText } from "../lib/format";
 

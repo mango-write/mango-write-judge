@@ -1,15 +1,22 @@
 <script setup lang="ts">
 import { computed, ref } from "vue";
 import { useI18n } from "vue-i18n";
-import { useConfirm } from "primevue/useconfirm";
-import { useToast } from "primevue/usetoast";
+import {
+  Clipboard,
+  Copy,
+  Download,
+  File as FileIcon,
+  Pencil,
+  Plus,
+  QrCode,
+  RefreshCw,
+  Trash2,
+  TriangleAlert,
+} from "lucide-vue-next";
 
 import QRCode from "qrcode";
 
-import Button from "primevue/button";
-import Dialog from "primevue/dialog";
-import InputText from "primevue/inputtext";
-import Textarea from "primevue/textarea";
+import { Button, Dialog, InputText, Textarea, useConfirm, useNotify } from "@mango-write/ui";
 
 import type { EventDetailDto, JudgeDto, JudgeInviteDto } from "@mango-write-judge/contracts";
 import { api } from "../../lib/api";
@@ -17,7 +24,7 @@ import { api } from "../../lib/api";
 const props = defineProps<{ event: EventDetailDto; disabled: boolean; canDelete?: boolean }>();
 const emit = defineEmits<{ changed: [] }>();
 const { t } = useI18n();
-const toast = useToast();
+const notify = useNotify();
 const confirm = useConfirm();
 
 const creating = ref(false);
@@ -81,7 +88,7 @@ async function create() {
     await openQr(invite);
     emit("changed");
   } catch (error) {
-    toast.add({ severity: "error", detail: errorDetail(error), life: 5000 });
+    notify.add({ severity: "error", detail: errorDetail(error), life: 5000 });
   } finally {
     busy.value = false;
   }
@@ -105,7 +112,7 @@ async function saveEdit() {
     editingId.value = null;
     emit("changed");
   } catch (error) {
-    toast.add({ severity: "error", detail: errorDetail(error), life: 5000 });
+    notify.add({ severity: "error", detail: errorDetail(error), life: 5000 });
   } finally {
     busy.value = false;
   }
@@ -137,9 +144,9 @@ async function copy(text: string) {
   if (!text) return;
   try {
     await navigator.clipboard.writeText(text);
-    toast.add({ severity: "success", detail: t("common.copied"), life: 1500 });
+    notify.add({ severity: "success", detail: t("common.copied"), life: 1500 });
   } catch {
-    toast.add({ severity: "warn", detail: text, life: 8000 });
+    notify.add({ severity: "warn", detail: text, life: 8000 });
   }
 }
 
@@ -147,14 +154,14 @@ function confirmAction(header: string, message: string, accept: () => Promise<vo
   confirm.require({
     header,
     message,
-    icon: "pi pi-exclamation-triangle",
-    acceptLabel: t("common.confirm"),
+    icon: TriangleAlert,
+    acceptLabel: t("common.ok"),
     rejectLabel: t("common.cancel"),
     accept: async () => {
       try {
         await accept();
       } catch (error) {
-        toast.add({ severity: "error", detail: errorDetail(error), life: 5000 });
+        notify.add({ severity: "error", detail: errorDetail(error), life: 5000 });
       }
     },
   });
@@ -178,7 +185,7 @@ async function remove(judgeId: string) {
     );
     emit("changed");
   } catch (error) {
-    toast.add({ severity: "error", detail: errorDetail(error), life: 5000 });
+    notify.add({ severity: "error", detail: errorDetail(error), life: 5000 });
   } finally {
     busy.value = false;
   }
@@ -196,7 +203,7 @@ async function doImport() {
     );
     importFile.value = null;
     for (const invite of result.judges ?? []) rememberInvite(invite);
-    toast.add({
+    notify.add({
       severity: result.errors.length ? "warn" : "success",
       detail: result.errors.length
         ? `${result.created} 已导入；${result.errors.map((e) => `#${e.row} ${e.message}`).join("；")}`
@@ -205,7 +212,7 @@ async function doImport() {
     });
     emit("changed");
   } catch (error) {
-    toast.add({ severity: "error", detail: errorDetail(error), life: 5000 });
+    notify.add({ severity: "error", detail: errorDetail(error), life: 5000 });
   } finally {
     busy.value = false;
   }
@@ -253,14 +260,14 @@ function downloadInvites() {
         <Button
           v-if="allInvites.length > 0"
           :label="t('admin.settings.showAllQr')"
-          icon="pi pi-qrcode"
+          :icon="QrCode"
           severity="secondary"
           outlined
           @click="openQrWall"
         />
         <Button
           :label="t('admin.settings.downloadInvites')"
-          icon="pi pi-download"
+          :icon="Download"
           severity="secondary"
           outlined
           :disabled="allInvites.length === 0"
@@ -269,7 +276,7 @@ function downloadInvites() {
         <Button
           v-if="!disabled"
           :label="t('admin.settings.batchPasteJudges')"
-          icon="pi pi-clipboard"
+          :icon="Clipboard"
           severity="secondary"
           outlined
           @click="showPaste = true"
@@ -288,9 +295,9 @@ function downloadInvites() {
       v-if="importFile"
       class="tw:mt-3 tw:flex tw:items-center tw:gap-3 tw:rounded-xl tw:bg-canvas tw:px-4 tw:py-2.5 tw:text-sm tw:text-muted"
     >
-      <i class="pi pi-file" />
+      <FileIcon :size="16" />
       <span>{{ importFile.name }}</span>
-      <Button :label="t('common.confirm')" :loading="busy" @click="doImport" />
+      <Button :label="t('common.ok')" :loading="busy" @click="doImport" />
       <Button :label="t('common.cancel')" severity="secondary" text @click="importFile = null" />
     </p>
 
@@ -312,7 +319,7 @@ function downloadInvites() {
             <Button
               v-if="judge.inviteUrl"
               :label="t('admin.settings.showQr')"
-              icon="pi pi-qrcode"
+              :icon="QrCode"
               severity="secondary"
               outlined
               @click="openQr(judge)"
@@ -320,21 +327,21 @@ function downloadInvites() {
             <Button
               v-if="judge.inviteUrl"
               :label="t('common.copy')"
-              icon="pi pi-copy"
+              :icon="Copy"
               severity="secondary"
               text
               @click="copy(judge.inviteUrl)"
             />
             <Button
               :label="t('admin.settings.rotateToken')"
-              icon="pi pi-refresh"
+              :icon="RefreshCw"
               severity="secondary"
               text
               :disabled="disabled"
               @click="rotateJudge(judge.id)"
             />
             <Button
-              icon="pi pi-pencil"
+              :icon="Pencil"
               severity="secondary"
               text
               :disabled="disabled"
@@ -342,7 +349,7 @@ function downloadInvites() {
             />
             <Button
               v-if="canDelete !== false && event.status === 'draft'"
-              icon="pi pi-trash"
+              :icon="Trash2"
               severity="danger"
               text
               :disabled="disabled"
@@ -362,7 +369,7 @@ function downloadInvites() {
       v-else
       class="tw:mt-4"
       :label="t('admin.settings.addJudge')"
-      icon="pi pi-plus"
+      :icon="Plus"
       severity="secondary"
       outlined
       :disabled="disabled"
@@ -371,18 +378,18 @@ function downloadInvites() {
 
     <!-- 单个评委二维码弹窗 -->
     <Dialog
-      :visible="qrInvite !== null"
+      :open="qrInvite !== null"
       modal
-      :header="qrInvite?.name ?? ''"
-      class="tw:min-w-80"
+      :title="qrInvite?.name ?? ''"
+      width="min(24rem, 92vw)"
       closable
-      @update:visible="(value) => { if (!value) qrInvite = null; }"
+      @update:open="(value) => { if (!value) qrInvite = null; }"
     >
       <div v-if="qrInvite" class="tw:flex tw:flex-col tw:items-center tw:gap-3">
         <img v-if="qrInvite.qrDataUrl" :src="qrInvite.qrDataUrl" alt="QR" class="tw:h-72 tw:w-72" />
         <code class="tw:max-w-full tw:break-all tw:rounded tw:bg-canvas tw:p-2 tw:text-xs">{{ qrInvite.inviteUrl }}</code>
         <div class="tw:flex tw:gap-2">
-          <Button :label="t('common.copy')" icon="pi pi-copy" severity="secondary" outlined @click="copy(qrInvite.inviteUrl)" />
+          <Button :label="t('common.copy')" :icon="Copy" severity="secondary" outlined @click="copy(qrInvite.inviteUrl)" />
         </div>
         <p class="tw:text-xs tw:text-faint">评委手机扫码或打开链接即可直接进入评分页，无需输入账号密码。</p>
       </div>
@@ -390,10 +397,10 @@ function downloadInvites() {
 
     <!-- 评委二维码墙弹窗 -->
     <Dialog
-      v-model:visible="showQrWall"
+      v-model:open="showQrWall"
       modal
-      :header="`${event.name} · ${t('admin.settings.showAllQr')}`"
-      class="tw:w-full tw:max-w-4xl"
+      :title="`${event.name} · ${t('admin.settings.showAllQr')}`"
+      width="min(56rem, 92vw)"
     >
       <div class="tw:grid tw:gap-4 tw:sm:grid-cols-2 tw:md:grid-cols-3">
         <div
@@ -403,18 +410,13 @@ function downloadInvites() {
         >
           <div class="tw:text-base tw:font-bold">{{ item.name }}</div>
           <img v-if="item.qrDataUrl" :src="item.qrDataUrl" :alt="item.name" class="tw:my-2 tw:h-44 tw:w-44" />
-          <Button :label="t('common.copy')" icon="pi pi-copy" severity="secondary" text @click="copy(item.inviteUrl)" />
+          <Button :label="t('common.copy')" :icon="Copy" severity="secondary" text @click="copy(item.inviteUrl)" />
         </div>
       </div>
     </Dialog>
 
     <!-- 批量粘贴评委弹窗 -->
-    <Dialog
-      v-model:visible="showPaste"
-      modal
-      :header="t('admin.settings.batchPasteJudges')"
-      class="tw:w-full tw:max-w-md"
-    >
+    <Dialog v-model:open="showPaste" modal :title="t('admin.settings.batchPasteJudges')" width="min(28rem, 92vw)">
       <div class="tw:flex tw:flex-col tw:gap-3">
         <p class="tw:text-sm tw:text-muted">{{ t("admin.settings.batchPasteJudgesHint") }}</p>
         <Textarea
@@ -425,7 +427,7 @@ function downloadInvites() {
         />
         <div class="tw:flex tw:justify-end tw:gap-2">
           <Button :label="t('common.cancel')" severity="secondary" text @click="showPaste = false" />
-          <Button :label="t('common.confirm')" :loading="busy" @click="doPasteImport" />
+          <Button :label="t('common.ok')" :loading="busy" @click="doPasteImport" />
         </div>
       </div>
     </Dialog>

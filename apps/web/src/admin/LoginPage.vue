@@ -2,18 +2,14 @@
 import { ref } from "vue";
 import { useRoute, useRouter } from "vue-router";
 import { useI18n } from "vue-i18n";
-import { useToast } from "primevue/usetoast";
 
-import { AppLogo } from "@mango-write/ui";
-import Button from "primevue/button";
-import InputText from "primevue/inputtext";
-import Password from "primevue/password";
+import { AppLogo, Button, InputText, useNotify } from "@mango-write/ui";
 
 import { api, ApiError } from "../lib/api";
 import SourceLicenseFooter from "../shared/SourceLicenseFooter.vue";
 
 const { t } = useI18n();
-const toast = useToast();
+const notify = useNotify();
 const router = useRouter();
 const route = useRoute();
 
@@ -28,7 +24,7 @@ async function submit() {
     router.replace(typeof route.query.redirect === "string" ? route.query.redirect : "/admin");
   } catch (error) {
     const key = error instanceof ApiError && error.code === "rate_limited" ? "admin.login.limited" : "admin.login.badCredentials";
-    toast.add({ severity: "error", detail: t(key), life: 4000 });
+    notify.add({ severity: "error", detail: t(key), life: 4000 });
   } finally {
     submitting.value = false;
   }
@@ -43,12 +39,11 @@ async function submit() {
     </div>
     <form class="tw:w-full tw:max-w-sm tw:rounded-2xl tw:border tw:border-line tw:bg-surface tw:p-6 tw:shadow-sm" @submit.prevent="submit">
       <label for="admin-password" class="tw:mb-2 tw:block tw:text-sm tw:font-medium">{{ t("admin.login.password") }}</label>
-      <Password
+      <InputText
         v-model="password"
-        :feedback="false"
+        type="password"
         input-id="admin-password"
         class="tw:w-full"
-        input-class="tw:w-full"
         autocomplete="current-password"
         autofocus
         fluid

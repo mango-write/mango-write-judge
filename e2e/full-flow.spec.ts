@@ -71,7 +71,7 @@ test("完整流程：建赛到闭幕导出", async ({ browser }) => {
     await adminPage.getByRole("button", { name: "保存", exact: true }).last().click();
     await adminPage.locator("code").last().waitFor();
     judgeLinks.push(await adminPage.locator("code").last().textContent() ?? "");
-    await adminPage.locator("button.p-dialog-close-button, .p-dialog-close-button").last().click();
+    await adminPage.locator(".mw-dialog__close").last().click();
   }
   expect(judgeLinks).toHaveLength(2);
   expect(judgeLinks[0]).toContain("/judge/e2e-demo#");
@@ -88,7 +88,7 @@ test("完整流程：建赛到闭幕导出", async ({ browser }) => {
   await adminPage.locator("code").last().waitFor();
   const displayLink = (await adminPage.locator("code").last().textContent()) ?? "";
   expect(displayLink).toContain("/display/e2e-demo#");
-  await adminPage.locator(".p-dialog-close-button").last().click();
+  await adminPage.locator(".mw-dialog__close").last().click();
   
   // 7. 解锁第一个项目（从无当前项目点「下一项目」）
   await adminPage.getByRole("button", { name: "下一项目" }).click();
@@ -109,7 +109,8 @@ test("完整流程：建赛到闭幕导出", async ({ browser }) => {
   }
   await expect(judgeAPage.getByRole("button", { name: "确认提交" })).toBeVisible({ timeout: 10_000 });
   await judgeAPage.getByRole("button", { name: "确认提交" }).click();
-  await expect(judgeAPage.getByText("确认提交评分")).toBeVisible();
+  // 新 Dialog 标题会同时渲染可见 h2 与 sr-only 描述，getByText 会 strict 撞双元素
+  await expect(judgeAPage.getByRole("heading", { name: "确认提交评分" })).toBeVisible();
   await judgeAPage.getByRole("button", { name: "确认" }).last().click();
   await expect(judgeAPage.getByText("提交成功")).toBeVisible({ timeout: 10_000 });
 

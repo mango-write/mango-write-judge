@@ -19,7 +19,8 @@
 - **分数是整数十分位**（8.7 → 87），聚合在毫位整数域完成，`round half-up` 在整数域实现——别引入浮点。
 - **postgres.js 的对象参数必须 `tx.json(x)`**；`sql.begin` 的选项串是拼进 `begin <options>` 的，要写全 `isolation level repeatable read`。
 - **SSE 只推 revision**，客户端重拉快照；草稿保存不推。前端 `useRevisionStream` 带 20s 看门狗与连接重建——EventSource 对 401/部分错误不会自动重连，认证完成前不要创建流（大屏/评委的门组件先换会话再挂直播子组件，就是这个原因）。
-- **PrimeVue `Dialog` 需要 `:visible` 绑定**，纯 `v-if` 不显示；`InputNumber` 在 blur 才提交模型，E2E 填完要补 Tab。
+- **`@mango-write/ui` 表单控件契约**：`Dialog` 主契约是 `v-model:open`，关闭按钮类 `.mw-dialog__close`，标题同时渲染可见 h2 与 sr-only 描述（E2E 断言弹窗标题要用 `getByRole("heading")`，`getByText` 会 strict 撞双元素）；`Button`/confirm 的 `icon` 收 lucide **组件**不是类名；`InputNumber` 每次输入即提交模型，blur 只做格式收口。Toast/Confirm 走 `useNotify`/`useConfirm`（main.ts 里 `provideNotify(app)`/`provideConfirm(app)`，Host 挂在 App.vue）。
+- **`mergeUiMessages` 会把 UI 自持文案深合并进宿主 `common.*` 的保留子键**（`select`/`userSelect`/`async`/`action`/`dialog`/`confirm`/`lightbox`）——宿主同路径的标量会被 UI 的对象覆盖（`common.confirm` 被覆盖成 `{title,accept,reject}` 即为实例），通用按钮键因此叫 `common.ok`，别再往保留子键放自己的标量。
 - **UI 硬规则：组件禁用 `size="small"`（回落默认尺寸），组件间必须有 gap**。Tailwind 前缀是 `tw:` 且**前缀要写在变体前**（`tw:hover:underline` / `tw:lg:grid-cols-3`）——写成 `hover:tw:*` / `lg:tw:*` 是死类，编译器不生成规则（4.3.4 实测），整页布局会静默碎掉。
 - **配置写都带 `expectedRevision`**（乐观并发）；`admin` 路由的 404/409/422 语义见 `packages/contracts/src/errors.ts`。
 - **测试库硬校验**：`mango_judge_test` / `judge_e2e`，别的库名直接拒绝启动。

@@ -2,9 +2,7 @@
  * 本文件只做装配。Tailwind v4 CSS-first；ui 包组件源码在 node_modules 里
  * （默认不扫描），显式 @source 纳入。 */
 @import "tailwindcss" prefix(tw);
-@plugin "tailwindcss-primeui";
 @import "@mango-write/ui/theme.css";
-@import "@mango-write/ui/components.css";
 
 @source "../../node_modules/@mango-write/ui/src";
 

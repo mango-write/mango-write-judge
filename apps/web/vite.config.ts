@@ -7,7 +7,7 @@ export default defineConfig({
   plugins: [vue(), tailwindcss()],
   resolve: {
     // 与 @mango-write/ui 共享同一运行时实例，provide/inject 与 Toast 上下文才成立
-    dedupe: ["vue", "vue-router", "vue-i18n", "primevue"],
+    dedupe: ["vue", "vue-router", "vue-i18n"],
   },
   server: {
     port: Number(process.env.WEB_PORT) || 5181,

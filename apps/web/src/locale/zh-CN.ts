@@ -7,7 +7,7 @@ export const zhCN = {
   common: {
     save: "保存",
     cancel: "取消",
-    confirm: "确认",
+    ok: "确认",
     delete: "删除",
     edit: "编辑",
     close: "关闭",

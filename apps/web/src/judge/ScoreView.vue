@@ -4,10 +4,9 @@
 import { computed, onMounted, onUnmounted, ref, watch } from "vue";
 import { useI18n } from "vue-i18n";
 import { useRouter } from "vue-router";
-import { useToast } from "primevue/usetoast";
+import { ArrowLeft } from "lucide-vue-next";
 
-import Button from "primevue/button";
-import Dialog from "primevue/dialog";
+import { Button, Dialog, useNotify } from "@mango-write/ui";
 
 import { formatMilli2, judgeTotalMilli } from "@mango-write-judge/domain";
 import type { JudgeSnapshotDto, SubmitScoresResponseDto } from "@mango-write-judge/contracts";
@@ -18,7 +17,7 @@ import CriterionCard from "./CriterionCard.vue";
 
 const props = defineProps<{ slug: string; projectId: string }>();
 const { t } = useI18n();
-const toast = useToast();
+const notify = useNotify();
 const router = useRouter();
 
 const snapshot = ref<JudgeSnapshotDto | null>(null);
@@ -111,7 +110,7 @@ async function saveDraft() {
   } catch (error) {
     saveState.value = "error";
     if (error instanceof ApiError && error.code === "revision_conflict") {
-      toast.add({ severity: "warn", detail: t("errors.revision_conflict"), life: 4000 });
+      notify.add({ severity: "warn", detail: t("errors.revision_conflict"), life: 4000 });
       await refresh();
       saveState.value = "idle";
     }
@@ -123,7 +122,7 @@ function openConfirm() {
     const first = snapshot.value!.criteria.find((c) => scores.value[c.id] === undefined);
     if (first) {
       highlightMissing.value = first.id;
-      toast.add({
+      notify.add({
         severity: "warn",
         detail: t("judge.score.missingFirst", { n: missingCount.value }),
         life: 4000,
@@ -149,7 +148,7 @@ async function submit() {
     operationId = null;
     confirming.value = false;
     saveState.value = "saved";
-    toast.add({
+    notify.add({
       severity: "success",
       detail: `${t("judge.score.submittedOk")} · v${result.version}`,
       life: 3000,
@@ -157,13 +156,13 @@ async function submit() {
     await refresh();
   } catch (error) {
     if (error instanceof ApiError && error.code === "revision_conflict") {
-      toast.add({ severity: "warn", detail: t("errors.revision_conflict"), life: 4000 });
+      notify.add({ severity: "warn", detail: t("errors.revision_conflict"), life: 4000 });
       await refresh();
     } else if (error instanceof ApiError && error.code === "idempotency_conflict") {
       operationId = null;
-      toast.add({ severity: "warn", detail: t("errors.idempotency_conflict"), life: 4000 });
+      notify.add({ severity: "warn", detail: t("errors.idempotency_conflict"), life: 4000 });
     } else {
-      toast.add({
+      notify.add({
         severity: "error",
         detail: t(
           error instanceof Error
@@ -211,7 +210,7 @@ onUnmounted(() => {
       <div class="tw:flex tw:items-center tw:justify-between">
         <Button
           :label="t('common.back')"
-          icon="pi pi-arrow-left"
+          :icon="ArrowLeft"
           severity="secondary"
           text
           @click="router.push(`/judge/${props.slug}/projects`)"
@@ -310,7 +309,7 @@ onUnmounted(() => {
       </div>
     </nav>
 
-    <Dialog v-model:visible="confirming" modal :header="t('judge.score.confirmTitle')" class="tw:min-w-80">
+    <Dialog v-model:open="confirming" modal :title="t('judge.score.confirmTitle')" width="min(24rem, 92vw)">
       <div class="tw:space-y-2">
         <div
           v-for="criterion in snapshot.criteria"
@@ -335,7 +334,7 @@ onUnmounted(() => {
       </div>
       <template #footer>
         <Button :label="t('common.cancel')" severity="secondary" text @click="confirming = false" />
-        <Button :label="t('common.confirm')" :loading="submitting" @click="submit" />
+        <Button :label="t('common.ok')" :loading="submitting" @click="submit" />
       </template>
     </Dialog>
   </div>

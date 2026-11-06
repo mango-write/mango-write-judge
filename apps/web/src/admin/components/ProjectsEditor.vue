@@ -1,12 +1,18 @@
 <script setup lang="ts">
 import { ref } from "vue";
 import { useI18n } from "vue-i18n";
-import { useToast } from "primevue/usetoast";
+import {
+  ArrowDown,
+  ArrowUp,
+  Clipboard,
+  Download,
+  File as FileIcon,
+  Pencil,
+  Plus,
+  Trash2,
+} from "lucide-vue-next";
 
-import Button from "primevue/button";
-import Dialog from "primevue/dialog";
-import InputText from "primevue/inputtext";
-import Textarea from "primevue/textarea";
+import { Button, Dialog, InputText, Textarea, useNotify } from "@mango-write/ui";
 
 import type { EventDetailDto, ProjectDto } from "@mango-write-judge/contracts";
 import { api } from "../../lib/api";
@@ -14,7 +20,7 @@ import { api } from "../../lib/api";
 const props = defineProps<{ event: EventDetailDto; disabled: boolean }>();
 const emit = defineEmits<{ changed: [] }>();
 const { t } = useI18n();
-const toast = useToast();
+const notify = useNotify();
 
 const creating = ref(false);
 const form = ref({ name: "", teamName: "", summary: "" });
@@ -60,7 +66,7 @@ async function create() {
     creating.value = false;
     emit("changed");
   } catch (error) {
-    toast.add({ severity: "error", detail: errorDetail(error), life: 5000 });
+    notify.add({ severity: "error", detail: errorDetail(error), life: 5000 });
   } finally {
     busy.value = false;
   }
@@ -90,7 +96,7 @@ async function saveEdit() {
     editingId.value = null;
     emit("changed");
   } catch (error) {
-    toast.add({ severity: "error", detail: errorDetail(error), life: 5000 });
+    notify.add({ severity: "error", detail: errorDetail(error), life: 5000 });
   } finally {
     busy.value = false;
   }
@@ -105,7 +111,7 @@ async function remove(id: string) {
     );
     emit("changed");
   } catch (error) {
-    toast.add({ severity: "error", detail: errorDetail(error), life: 5000 });
+    notify.add({ severity: "error", detail: errorDetail(error), life: 5000 });
   } finally {
     busy.value = false;
   }
@@ -122,7 +128,7 @@ async function move(index: number, offset: -1 | 1) {
     );
     emit("changed");
   } catch (error) {
-    toast.add({ severity: "error", detail: errorDetail(error), life: 5000 });
+    notify.add({ severity: "error", detail: errorDetail(error), life: 5000 });
   }
 }
 
@@ -137,7 +143,7 @@ async function doImport() {
       ),
     );
     importFile.value = null;
-    toast.add({
+    notify.add({
       severity: result.errors.length ? "warn" : "success",
       detail: result.errors.length
         ? `${result.created} 已导入；${result.errors.length} 行失败：${result.errors.map((e) => `#${e.row} ${e.message}`).join("；")}`
@@ -146,7 +152,7 @@ async function doImport() {
     });
     emit("changed");
   } catch (error) {
-    toast.add({ severity: "error", detail: errorDetail(error), life: 5000 });
+    notify.add({ severity: "error", detail: errorDetail(error), life: 5000 });
   } finally {
     busy.value = false;
   }
@@ -205,14 +211,14 @@ function onFile(event: Event) {
       <div v-if="!disabled" class="tw:flex tw:flex-wrap tw:items-center tw:gap-2">
         <Button
           :label="t('admin.settings.batchPasteProjects')"
-          icon="pi pi-clipboard"
+          :icon="Clipboard"
           severity="secondary"
           outlined
           @click="showPaste = true"
         />
         <Button
           :label="t('admin.settings.downloadTemplate')"
-          icon="pi pi-download"
+          :icon="Download"
           severity="secondary"
           text
           @click="downloadTemplate"
@@ -225,9 +231,9 @@ function onFile(event: Event) {
     </div>
 
     <p v-if="importFile" class="tw:mt-3 tw:flex tw:items-center tw:gap-3 tw:rounded-xl tw:bg-canvas tw:px-4 tw:py-2.5 tw:text-sm tw:text-muted">
-      <i class="pi pi-file" />
+      <FileIcon :size="16" />
       <span>{{ importFile.name }}</span>
-      <Button :label="t('common.confirm')" :loading="busy" @click="doImport" />
+      <Button :label="t('common.ok')" :loading="busy" @click="doImport" />
       <Button :label="t('common.cancel')" severity="secondary" text @click="importFile = null" />
     </p>
 
@@ -260,21 +266,21 @@ function onFile(event: Event) {
           </div>
           <div class="tw:ml-auto tw:flex tw:gap-1">
             <Button
-              icon="pi pi-arrow-up"
+              :icon="ArrowUp"
               severity="secondary"
               text
               :disabled="disabled || index === 0"
               @click="move(index, -1)"
             />
             <Button
-              icon="pi pi-arrow-down"
+              :icon="ArrowDown"
               severity="secondary"
               text
               :disabled="disabled || index === event.projects.length - 1"
               @click="move(index, 1)"
             />
             <Button
-              icon="pi pi-pencil"
+              :icon="Pencil"
               severity="secondary"
               text
               :disabled="disabled"
@@ -282,7 +288,7 @@ function onFile(event: Event) {
             />
             <Button
               v-if="event.status === 'draft'"
-              icon="pi pi-trash"
+              :icon="Trash2"
               severity="danger"
               text
               :disabled="disabled"
@@ -307,19 +313,14 @@ function onFile(event: Event) {
       v-else
       class="tw:mt-4"
       :label="t('admin.settings.addProject')"
-      icon="pi pi-plus"
+      :icon="Plus"
       severity="secondary"
       outlined
       :disabled="disabled"
       @click="creating = true"
     />
 
-    <Dialog
-      v-model:visible="showPaste"
-      modal
-      :header="t('admin.settings.batchPasteProjects')"
-      class="tw:w-full tw:max-w-lg"
-    >
+    <Dialog v-model:open="showPaste" modal :title="t('admin.settings.batchPasteProjects')" width="min(32rem, 92vw)">
       <div class="tw:flex tw:flex-col tw:gap-3">
         <p class="tw:text-sm tw:text-muted">{{ t("admin.settings.batchPasteProjectsHint") }}</p>
         <Textarea
@@ -330,7 +331,7 @@ function onFile(event: Event) {
         />
         <div class="tw:flex tw:justify-end tw:gap-2">
           <Button :label="t('common.cancel')" severity="secondary" text @click="showPaste = false" />
-          <Button :label="t('common.confirm')" :loading="busy" @click="doPasteImport" />
+          <Button :label="t('common.ok')" :loading="busy" @click="doPasteImport" />
         </div>
       </div>
     </Dialog>

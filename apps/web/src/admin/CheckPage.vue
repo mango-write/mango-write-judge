@@ -2,17 +2,16 @@
 import { computed, onMounted, ref } from "vue";
 import { useI18n } from "vue-i18n";
 import { useRouter } from "vue-router";
-import { useConfirm } from "primevue/useconfirm";
-import { useToast } from "primevue/usetoast";
+import { TriangleAlert } from "lucide-vue-next";
 
-import Button from "primevue/button";
+import { Button, useConfirm, useNotify } from "@mango-write/ui";
 
 import type { EventDetailDto } from "@mango-write-judge/contracts";
 import { api } from "../lib/api";
 
 const props = defineProps<{ id: string }>();
 const { t } = useI18n();
-const toast = useToast();
+const notify = useNotify();
 const confirm = useConfirm();
 const router = useRouter();
 
@@ -34,17 +33,17 @@ function start() {
   confirm.require({
     header: t("admin.check.startConfirmHeader"),
     message: t("admin.check.startConfirm"),
-    icon: "pi pi-exclamation-triangle",
+    icon: TriangleAlert,
     acceptLabel: t("admin.check.start"),
     rejectLabel: t("common.cancel"),
     accept: async () => {
       starting.value = true;
       try {
         await api.post(`/admin/events/${event.value!.id}/start`);
-        toast.add({ severity: "success", detail: "比赛已启动", life: 3000 });
+        notify.add({ severity: "success", detail: "比赛已启动", life: 3000 });
         router.push(`/admin/events/${props.id}/control`);
       } catch (error) {
-        toast.add({
+        notify.add({
           severity: "error",
           detail: t(`errors.${(error as { code?: string }).code ?? "internal_error"}`),
           life: 5000,

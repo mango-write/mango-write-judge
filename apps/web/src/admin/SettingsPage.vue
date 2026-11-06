@@ -2,12 +2,9 @@
 import { computed, onMounted, ref } from "vue";
 import { useI18n } from "vue-i18n";
 import { useRouter } from "vue-router";
-import { useConfirm } from "primevue/useconfirm";
-import { useToast } from "primevue/usetoast";
+import { CircleCheck, Info, Play, TriangleAlert } from "lucide-vue-next";
 
-import Button from "primevue/button";
-import InputText from "primevue/inputtext";
-import Textarea from "primevue/textarea";
+import { Button, InputText, Textarea, useConfirm, useNotify } from "@mango-write/ui";
 
 import type { EventDetailDto } from "@mango-write-judge/contracts";
 import { api } from "../lib/api";
@@ -17,7 +14,7 @@ import JudgesPanel from "./components/JudgesPanel.vue";
 
 const props = defineProps<{ id: string }>();
 const { t } = useI18n();
-const toast = useToast();
+const notify = useNotify();
 const confirm = useConfirm();
 const router = useRouter();
 
@@ -46,9 +43,9 @@ async function saveBasic() {
       description: description.value.trim(),
       expectedRevision: event.value.revision,
     });
-    toast.add({ severity: "success", detail: t("common.saved"), life: 2000 });
+    notify.add({ severity: "success", detail: t("common.saved"), life: 2000 });
   } catch (error) {
-    toast.add({
+    notify.add({
       severity: "error",
       detail: t(
         error instanceof Error
@@ -67,17 +64,17 @@ function startNow() {
   confirm.require({
     header: t("admin.check.startConfirmHeader"),
     message: t("admin.check.startConfirm"),
-    icon: "pi pi-exclamation-triangle",
+    icon: TriangleAlert,
     acceptLabel: t("admin.check.start"),
     rejectLabel: t("common.cancel"),
     accept: async () => {
       starting.value = true;
       try {
         await api.post(`/admin/events/${event.value!.id}/start`);
-        toast.add({ severity: "success", detail: "比赛已启动", life: 3000 });
+        notify.add({ severity: "success", detail: "比赛已启动", life: 3000 });
         router.push(`/admin/events/${props.id}/control`);
       } catch (error) {
-        toast.add({
+        notify.add({
           severity: "error",
           detail: t(`errors.${(error as { code?: string }).code ?? "internal_error"}`),
           life: 5000,
@@ -185,9 +182,10 @@ onMounted(load);
     >
       <div class="tw:space-y-1">
         <div class="tw:flex tw:items-center tw:gap-2 tw:text-sm tw:font-semibold">
-          <i
-            class="pi"
-            :class="event.startCheck.ok ? 'pi-check-circle tw:text-success' : 'pi-info-circle tw:text-warning'"
+          <component
+            :is="event.startCheck.ok ? CircleCheck : Info"
+            :size="16"
+            :class="event.startCheck.ok ? 'tw:text-success' : 'tw:text-warning'"
           />
           <span>
             {{ event.startCheck.ok ? t("admin.check.readyTitle") : t("admin.check.notReadyTitle") }}
@@ -209,7 +207,7 @@ onMounted(load);
       <div class="tw:flex tw:items-center tw:gap-2">
         <Button
           :label="t('admin.check.start')"
-          icon="pi pi-play"
+          :icon="Play"
           :disabled="!event.startCheck.ok"
           :loading="starting"
           @click="startNow"

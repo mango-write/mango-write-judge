@@ -1,12 +1,9 @@
-// Judge 前端装配：createApp + PrimeVue（MangoPreset）+ vue-router + vue-i18n。
+// Judge 前端装配：createApp + @mango-write/ui（notify/confirm store）+ vue-router + vue-i18n。
 // MVP 文案 zh-CN（i18n 已接好，en-US 可后续补充为独立 locale 文件）。
 import { createApp } from "vue";
 import { createI18n } from "vue-i18n";
-import PrimeVue from "primevue/config";
-import ConfirmationService from "primevue/confirmationservice";
-import ToastService from "primevue/toastservice";
 
-import { initTheme, MangoPreset, mergeUiMessages, vTooltip } from "@mango-write/ui";
+import { initTheme, mergeUiMessages, provideConfirm, provideNotify, vTooltip } from "@mango-write/ui";
 
 import { messages } from "./locale";
 import App from "./App.vue";
@@ -25,11 +22,8 @@ const i18n = createI18n({
 mergeUiMessages(i18n);
 
 const app = createApp(App);
-app.use(PrimeVue, {
-  theme: { preset: MangoPreset, options: { darkModeSelector: '[data-theme="dark"]' } },
-});
-app.use(ToastService);
-app.use(ConfirmationService);
+provideNotify(app);
+provideConfirm(app);
 app.use(i18n);
 app.use(router);
 app.directive("tooltip", vTooltip);

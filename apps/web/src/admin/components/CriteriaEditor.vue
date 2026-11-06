@@ -1,11 +1,17 @@
 <script setup lang="ts">
 import { computed, ref } from "vue";
 import { useI18n } from "vue-i18n";
-import { useToast } from "primevue/usetoast";
+import {
+  ArrowDown,
+  ArrowUp,
+  Pencil,
+  Plus,
+  SlidersHorizontal,
+  Sparkles,
+  Trash2,
+} from "lucide-vue-next";
 
-import Button from "primevue/button";
-import InputNumber from "primevue/inputnumber";
-import InputText from "primevue/inputtext";
+import { Button, InputNumber, InputText, useNotify } from "@mango-write/ui";
 
 import type { EventDetailDto } from "@mango-write-judge/contracts";
 import { api } from "../../lib/api";
@@ -13,7 +19,7 @@ import { api } from "../../lib/api";
 const props = defineProps<{ event: EventDetailDto; disabled: boolean }>();
 const emit = defineEmits<{ changed: [] }>();
 const { t } = useI18n();
-const toast = useToast();
+const notify = useNotify();
 
 const editingId = ref<string | null>(null);
 const editing = ref({ name: "", description: "", weightPercent: 50 });
@@ -72,7 +78,7 @@ async function create() {
     creating.value = false;
     emit("changed");
   } catch (error) {
-    toast.add({ severity: "error", detail: errorDetail(error), life: 5000 });
+    notify.add({ severity: "error", detail: errorDetail(error), life: 5000 });
   } finally {
     busy.value = false;
   }
@@ -94,7 +100,7 @@ async function applyPreset() {
     }
     emit("changed");
   } catch (error) {
-    toast.add({ severity: "error", detail: errorDetail(error), life: 5000 });
+    notify.add({ severity: "error", detail: errorDetail(error), life: 5000 });
   } finally {
     busy.value = false;
   }
@@ -122,7 +128,7 @@ async function balanceWeights() {
     }
     emit("changed");
   } catch (error) {
-    toast.add({ severity: "error", detail: errorDetail(error), life: 5000 });
+    notify.add({ severity: "error", detail: errorDetail(error), life: 5000 });
   } finally {
     busy.value = false;
   }
@@ -143,7 +149,7 @@ async function saveEdit() {
     editingId.value = null;
     emit("changed");
   } catch (error) {
-    toast.add({ severity: "error", detail: errorDetail(error), life: 5000 });
+    notify.add({ severity: "error", detail: errorDetail(error), life: 5000 });
   } finally {
     busy.value = false;
   }
@@ -158,7 +164,7 @@ async function remove(id: string) {
     );
     emit("changed");
   } catch (error) {
-    toast.add({ severity: "error", detail: errorDetail(error), life: 5000 });
+    notify.add({ severity: "error", detail: errorDetail(error), life: 5000 });
   } finally {
     busy.value = false;
   }
@@ -175,7 +181,7 @@ async function move(index: number, offset: -1 | 1) {
     );
     emit("changed");
   } catch (error) {
-    toast.add({ severity: "error", detail: errorDetail(error), life: 5000 });
+    notify.add({ severity: "error", detail: errorDetail(error), life: 5000 });
   }
 }
 </script>
@@ -191,7 +197,7 @@ async function move(index: number, offset: -1 | 1) {
         <Button
           v-if="!disabled && event.criteria.length > 0 && !sumOk"
           :label="t('admin.settings.balanceWeights')"
-          icon="pi pi-sliders-h"
+          :icon="SlidersHorizontal"
           severity="secondary"
           outlined
           :loading="busy"
@@ -241,7 +247,7 @@ async function move(index: number, offset: -1 | 1) {
       <Button
         v-if="!disabled"
         :label="t('admin.settings.applyRoadshowPreset')"
-        icon="pi pi-sparkles"
+        :icon="Sparkles"
         severity="secondary"
         outlined
         :loading="busy"
@@ -275,21 +281,21 @@ async function move(index: number, offset: -1 | 1) {
           <span v-if="criterion.description" class="tw:text-sm tw:text-muted">{{ criterion.description }}</span>
           <div class="tw:ml-auto tw:flex tw:gap-1">
             <Button
-              icon="pi pi-arrow-up"
+              :icon="ArrowUp"
               severity="secondary"
               text
               :disabled="disabled || index === 0"
               @click="move(index, -1)"
             />
             <Button
-              icon="pi pi-arrow-down"
+              :icon="ArrowDown"
               severity="secondary"
               text
               :disabled="disabled || index === event.criteria.length - 1"
               @click="move(index, 1)"
             />
             <Button
-              icon="pi pi-pencil"
+              :icon="Pencil"
               severity="secondary"
               text
               :disabled="disabled"
@@ -302,7 +308,7 @@ async function move(index: number, offset: -1 | 1) {
                 };
               "
             />
-            <Button icon="pi pi-trash" severity="danger" text :disabled="disabled" @click="remove(criterion.id)" />
+            <Button :icon="Trash2" severity="danger" text :disabled="disabled" @click="remove(criterion.id)" />
           </div>
         </template>
       </div>
@@ -339,7 +345,7 @@ async function move(index: number, offset: -1 | 1) {
       v-else
       class="tw:mt-4"
       :label="t('admin.settings.addCriterion')"
-      icon="pi pi-plus"
+      :icon="Plus"
       severity="secondary"
       outlined
       :disabled="disabled"
