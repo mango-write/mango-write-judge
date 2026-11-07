@@ -18,7 +18,7 @@ jobs:
         ports:
           - 5432:5432
         options: >-
-          --health-cmd "pg_isready -U judge"
+          --health-cmd "pg_isready -U judge -d mango_judge_test"
           --health-interval 5s
           --health-timeout 3s
           --health-retries 20
@@ -35,7 +35,7 @@ jobs:
           cache: pnpm
       - run: pnpm install --frozen-lockfile
       - run: pnpm -r typecheck
-      - run: pnpm -r test
+      - run: pnpm -r --filter '!@mango-write-judge/e2e' test
       - run: pnpm build
       - name: Install Playwright browsers
         run: pnpm --filter @mango-write-judge/e2e exec playwright install chromium --with-deps

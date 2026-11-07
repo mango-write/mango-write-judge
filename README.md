@@ -53,8 +53,10 @@ pnpm dev                  # API :3200 + 前端 :5181（/api 代理到 3200）
 ### 测试
 
 ```bash
-pnpm test        # domain/contracts/api/web 全部（api 集成测试连真实测试库）
-pnpm e2e         # Playwright 全流程（三视口：管理桌面/评委手机/大屏）
+pnpm test        # 单元/DB 测试（不提前启动 E2E）
+pnpm build
+pnpm --filter @mango-write-judge/e2e exec playwright install chromium
+pnpm e2e         # 构建与浏览器准备完成后，单独运行 Playwright 全流程
 ```
 
 DB 集成测试默认连 `TEST_DATABASE_URL`（缺省 `postgres://judge:judge@localhost:5544/mango_judge_test`），库名硬校验为 `mango_judge_test`，不会误伤开发库。E2E 使用独立的 `judge_e2e` 库并在每次运行前重建。

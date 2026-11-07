@@ -15,7 +15,7 @@
     "db:create-test": "pnpm --filter @mango-write-judge/api db:create-test",
     "build": "pnpm --filter @mango-write-judge/web build",
     "typecheck": "pnpm -r typecheck",
-    "test": "pnpm -r test",
+    "test": "pnpm -r --filter '!@mango-write-judge/e2e' test",
     "e2e": "pnpm --filter @mango-write-judge/e2e test",
     "docker:up": "docker compose -f deploy/docker-compose.yml up -d --build"
   },

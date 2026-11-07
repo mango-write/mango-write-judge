@@ -20,13 +20,13 @@ await admin`DROP DATABASE IF EXISTS judge_e2e`;
 await admin`CREATE DATABASE judge_e2e`;
 await admin.end();
 
-execFileSync("npx", ["tsx", "apps/api/src/db/migrate-cli.ts"], {
+execFileSync("pnpm", ["--filter", "@mango-write-judge/api", "exec", "tsx", "src/db/migrate-cli.ts"], {
   cwd: repoRoot,
   env: { ...process.env, DATABASE_URL: E2E_DATABASE_URL },
   stdio: "inherit",
 });
 
-const child = spawn("npx", ["tsx", "apps/api/src/index.ts"], {
+const child = spawn("pnpm", ["--filter", "@mango-write-judge/api", "exec", "tsx", "src/index.ts"], {
   cwd: repoRoot,
   env: {
     ...process.env,

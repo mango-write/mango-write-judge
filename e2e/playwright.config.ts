@@ -14,7 +14,7 @@ export default defineConfig({
     baseURL: E2E_BASE_URL,
   },
   webServer: {
-    command: "npx tsx run-api.ts",
+    command: "pnpm --filter @mango-write-judge/api exec tsx ../../e2e/run-api.ts",
     url: `${E2E_BASE_URL}/readyz`,
     reuseExistingServer: false,
     timeout: 90_000,
