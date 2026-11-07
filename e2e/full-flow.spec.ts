@@ -1,6 +1,6 @@
 import { expect, test, type Page } from "@playwright/test";
 
-import { E2E_ADMIN_PASSWORD } from "./env";
+import { E2E_ADMIN_PASSWORD, E2E_BASE_URL } from "./env";
 
 // 全流程验收（MVP 规格 §13 关键联动场景）：建赛 → 邀请 → 启动 → 解锁项目 →
 // 评分 → 大屏进度 → 首次公开 → 解锁改分 → 闭幕 → 揭晓 → 导出。
@@ -38,7 +38,7 @@ test("完整流程：建赛到闭幕导出", async ({ browser }) => {
   const adminPage = await admin.newPage();
   
   // 1. 建赛
-  await adminGoto(adminPage, "http://localhost:3210/admin");
+  await adminGoto(adminPage, `${E2E_BASE_URL}/admin`);
   await adminPage.getByRole("button", { name: "新建比赛" }).click();
   await adminPage.getByLabel("比赛名称", { exact: false }).fill("E2E 路演赛");
   await adminPage.getByLabel("URL slug", { exact: false }).fill("e2e-demo");
@@ -211,7 +211,7 @@ async function loginAs(page: Page, username: string, password: string) {
 test("账户系统：建管理员、停用启用、改密与权限边界", async ({ browser }) => {
   const admin = await browser.newContext({ viewport: { width: 1440, height: 900 } });
   const page = await admin.newPage();
-  const BASE = "http://localhost:3210";
+  const BASE = E2E_BASE_URL;
 
   // 登录限流是按 IP 全局 5 次/分钟（与上一用例共享），本用例把登录控制在 4 次。
   await adminGoto(page, `${BASE}/admin/accounts`);
